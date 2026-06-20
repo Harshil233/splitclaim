@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import Tesseract from "tesseract.js";
 import styles from "@/styles/Expense.module.css";
 import { Upload, Plus, Trash2, Check, Camera } from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
 
 interface ScannedItem {
   id: string;
@@ -629,9 +630,16 @@ export default function BillScanner({ onItemsConfirmed, currency }: BillScannerP
             >
               <Plus size={14} /> Add Item
             </button>
-            <span style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-primary)" }}>
-              Total: {totalScanned.toFixed(2)}
-            </span>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "2px" }}>
+              <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>
+                Items Sum: {formatCurrency(totalScanned, currency)}
+              </span>
+              {scannedGrandTotal !== undefined && scannedGrandTotal > 0 && (
+                <span style={{ fontSize: "15px", fontWeight: 700, color: "var(--accent)" }}>
+                  Bill Total: {formatCurrency(scannedGrandTotal, currency)}
+                </span>
+              )}
+            </div>
           </div>
 
           <button
