@@ -8,6 +8,7 @@ import groupStyles from "@/styles/Group.module.css";
 import { ArrowLeft, Save, Calculator, AlertTriangle, FileText, Check } from "lucide-react";
 import Link from "next/link";
 import BillScanner from "@/components/BillScanner";
+import { formatCurrency } from "@/lib/utils";
 
 interface GroupMember {
   id: string;
@@ -121,10 +122,14 @@ export default function AddExpensePage({ params }: { params: Promise<{ id: strin
     });
   };
 
-  const handleItemsScanned = (items: Array<{ id: string; name: string; price: number }>) => {
+  const handleItemsScanned = (items: Array<{ id: string; name: string; price: number }>, grandTotal?: number) => {
     setScannedItems(items);
-    const sum = items.reduce((acc, curr) => acc + curr.price, 0);
-    setAmount(parseFloat(sum.toFixed(2)));
+    if (grandTotal && grandTotal > 0) {
+      setAmount(grandTotal);
+    } else {
+      const sum = items.reduce((acc, curr) => acc + curr.price, 0);
+      setAmount(parseFloat(sum.toFixed(2)));
+    }
   };
 
   const validateForm = (): { isValid: boolean; finalSplits: any[] } => {
@@ -320,22 +325,31 @@ export default function AddExpensePage({ params }: { params: Promise<{ id: strin
 
           <div className="input-group">
             <label htmlFor="expAmt">Total Amount ({group?.currency})</label>
-            <input
-              id="expAmt"
-              type="number"
-              step="0.01"
-              min="0.01"
-              className="input-field"
-              value={amount || ""}
-              onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
-              disabled={splitType === "itemized"} // OCR handles amount
-              required
-            />
-            {splitType === "itemized" && (
-              <span style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>
-                * Amount is locked to the sum of scanned bill items.
-              </span>
-            )}
+              <input
+                id="expAmt"
+                type="number"
+                step="0.01"
+                min="0.01"
+                className="input-field"
+                value={amount || ""}
+                onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
+                required
+              />
+              {splitType === "itemized" && group && (
+                <span style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "4px", display: "block" }}>
+                  {(() => {
+                    const itemsSum = scannedItems.reduce((acc, curr) => acc + curr.price, 0);
+                    const diff = amount - itemsSum;
+                    if (Math.abs(diff) < 0.01) {
+                      return "✓ Total amount matches the sum of items.";
+                    } else if (diff > 0) {
+                      return `+ ${formatCurrency(diff, group.currency)} additional fees (delivery, handling, taxes) split equally by default.`;
+                    } else {
+                      return `- ${formatCurrency(Math.abs(diff), group.currency)} discount will be subtracted/distributed by default.`;
+                    }
+                  })()}
+                </span>
+              )}
           </div>
 
           <div className="input-group">

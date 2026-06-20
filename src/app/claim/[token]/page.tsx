@@ -235,8 +235,8 @@ export default function PublicClaimPage({ params }: { params: Promise<{ token: s
   }).filter(Boolean) as Array<{ id: string; name: string; fullPrice: number; claimantsCount: number; sharePrice: number }>;
 
   const totalItemsSum = expense.items.reduce((sum, item) => sum + item.price, 0);
-  const additionalFee = Math.max(0, expense.amount - totalItemsSum);
-  const memberShareOfFee = additionalFee > 0 ? (additionalFee / group.members.length) : 0;
+  const netDifference = expense.amount - totalItemsSum;
+  const memberShareOfDifference = netDifference / group.members.length;
   const yourTotalShare = summaryReceiptItems.reduce((sum, item) => sum + item.sharePrice, 0);
 
   // Claim Progress calculations
@@ -389,8 +389,8 @@ export default function PublicClaimPage({ params }: { params: Promise<{ token: s
                   })}
                 </div>
 
-                {/* Tax & Fees Info */}
-                {additionalFee > 0 && (
+                {/* Tax & Fees / Discount Info */}
+                {Math.abs(netDifference) > 0.01 && (
                   <div style={{
                     fontSize: "12px",
                     color: "var(--text-secondary)",
@@ -403,12 +403,18 @@ export default function PublicClaimPage({ params }: { params: Promise<{ token: s
                     flexDirection: "column",
                     gap: "4px"
                   }}>
-                    <span style={{ fontWeight: "600", color: "var(--primary)" }}>Tax & Fees Splitting</span>
-                    <span>
-                      This bill includes <strong>{formatCurrency(additionalFee, group.currency)}</strong> in additional fees (taxes, GST, delivery, etc.) split equally.
+                    <span style={{ fontWeight: "600", color: "var(--primary)" }}>
+                      {netDifference > 0 ? "Tax & Fees Splitting" : "Discount Splitting"}
                     </span>
                     <span>
-                      Each of the {group.members.length} members pays a base share of <strong>{formatCurrency(memberShareOfFee, group.currency)}</strong>.
+                      {netDifference > 0 ? (
+                        <>This bill includes <strong>{formatCurrency(netDifference, group.currency)}</strong> in additional fees (taxes, GST, delivery, etc.) split equally.</>
+                      ) : (
+                        <>This bill includes a global discount of <strong>{formatCurrency(Math.abs(netDifference), group.currency)}</strong> split equally.</>
+                      )}
+                    </span>
+                    <span>
+                      Each of the {group.members.length} members receives a share of <strong>{formatCurrency(memberShareOfDifference, group.currency)}</strong>.
                     </span>
                   </div>
                 )}
@@ -430,16 +436,16 @@ export default function PublicClaimPage({ params }: { params: Promise<{ token: s
                       </div>
                     ))}
                     
-                    {additionalFee > 0 && (
+                    {Math.abs(netDifference) > 0.01 && (
                       <div className={styles.receiptItem} style={{ borderTop: "1px dashed var(--card-border)", paddingTop: "8px", marginTop: "4px" }}>
-                        <span>Additional Fees (Taxes/GST/Delivery)</span>
-                        <span>{formatCurrency(memberShareOfFee, group.currency)}</span>
+                        <span>{netDifference > 0 ? "Additional Fees (Taxes/GST/Delivery)" : "Global Discount"}</span>
+                        <span>{formatCurrency(memberShareOfDifference, group.currency)}</span>
                       </div>
                     )}
 
                     <div className={styles.receiptTotalRow}>
                       <span>Your Share:</span>
-                      <span>{formatCurrency(yourTotalShare + memberShareOfFee, group.currency)}</span>
+                      <span>{formatCurrency(yourTotalShare + memberShareOfDifference, group.currency)}</span>
                     </div>
                   </div>
                 )}
@@ -493,16 +499,16 @@ export default function PublicClaimPage({ params }: { params: Promise<{ token: s
                   );
                 })}
               
-              {additionalFee > 0 && (
+              {Math.abs(netDifference) > 0.01 && (
                 <div className={styles.receiptPrintLine} style={{ borderTop: "1px dashed rgba(255,255,255,0.1)", paddingTop: "6px", marginTop: "4px" }}>
-                  <span>TAX & FEES (1/{group.members.length})</span>
-                  <span>{formatCurrency(memberShareOfFee, group.currency)}</span>
+                  <span>{netDifference > 0 ? "TAX & FEES" : "DISCOUNT"} (1/{group.members.length})</span>
+                  <span>{formatCurrency(memberShareOfDifference, group.currency)}</span>
                 </div>
               )}
               
               <div className={styles.receiptPrintTotal}>
                 <span>TOTAL SHARE:</span>
-                <span>{formatCurrency(yourTotalShare + memberShareOfFee, group.currency)}</span>
+                <span>{formatCurrency(yourTotalShare + memberShareOfDifference, group.currency)}</span>
               </div>
             </div>
           </div>

@@ -115,14 +115,14 @@ export function calculateItemizedSplits(
   // Calculate sum of all items in the checklist
   const totalItemsSum = items.reduce((sum, item) => sum + (item.price || 0), 0);
 
-  // Additional fee = totalAmount - sum of all items (minimum 0)
-  const additionalFee = Math.max(0, totalAmount - totalItemsSum);
+  // Calculate net difference (taxes/fees if positive, discount if negative)
+  const netDifference = totalAmount - totalItemsSum;
 
-  // Split additional fee equally among all members
-  if (additionalFee > 0 && memberIds.length > 0) {
-    const additionalFeeShare = additionalFee / memberIds.length;
+  // Split this difference equally among all members
+  if (Math.abs(netDifference) > 0.001 && memberIds.length > 0) {
+    const differenceShare = netDifference / memberIds.length;
     memberIds.forEach((id) => {
-      splitsMap[id] += additionalFeeShare;
+      splitsMap[id] += differenceShare;
     });
   }
 

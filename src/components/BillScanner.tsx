@@ -12,7 +12,7 @@ interface ScannedItem {
 }
 
 interface BillScannerProps {
-  onItemsConfirmed: (items: ScannedItem[]) => void;
+  onItemsConfirmed: (items: ScannedItem[], grandTotal?: number) => void;
   currency: string;
 }
 
@@ -99,6 +99,7 @@ export default function BillScanner({ onItemsConfirmed, currency }: BillScannerP
   const cameraInputRef = useRef<HTMLInputElement>(null);
   
   const [items, setItems] = useState<ScannedItem[]>([]);
+  const [scannedGrandTotal, setScannedGrandTotal] = useState<number | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [statusText, setStatusText] = useState("");
@@ -215,6 +216,11 @@ export default function BillScanner({ onItemsConfirmed, currency }: BillScannerP
 
         const merged = mergeItemLists(items, itemsWithIds);
         setItems(merged);
+        if (data.grandTotal && data.grandTotal > 0) {
+          setScannedGrandTotal(data.grandTotal);
+        } else {
+          setScannedGrandTotal(undefined);
+        }
         if (merged.length === 0) {
           setError("No items detected. You can add them manually below.");
         }
@@ -483,7 +489,7 @@ export default function BillScanner({ onItemsConfirmed, currency }: BillScannerP
 
   const handleConfirm = () => {
     const validItems = items.filter((item) => item.name.trim() && item.price > 0);
-    onItemsConfirmed(validItems);
+    onItemsConfirmed(validItems, scannedGrandTotal);
   };
 
   const triggerFileSelect = () => {
