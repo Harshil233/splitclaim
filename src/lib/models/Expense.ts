@@ -72,6 +72,10 @@ const ExpenseSchema = new Schema(
       unique: true,
       sparse: true,
     },
+    submittedMembers: {
+      type: [String],
+      default: [],
+    },
   },
   {
     timestamps: true,

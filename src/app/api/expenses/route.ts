@@ -5,6 +5,7 @@ import dbConnect from "@/lib/db";
 import Group from "@/lib/models/Group";
 import Expense from "@/lib/models/Expense";
 import crypto from "crypto";
+import { calculateItemizedSplits } from "@/lib/utils";
 
 export async function POST(req: Request) {
   try {
@@ -45,7 +46,7 @@ export async function POST(req: Request) {
     if (splitType === "itemized") {
       claimToken = crypto.randomUUID();
       // Calculate initial splits based on claims (which might be empty initially)
-      finalSplits = calculateInitialItemizedSplits(
+      finalSplits = calculateItemizedSplits(
         amount,
         payerId,
         items || [],
@@ -73,56 +74,3 @@ export async function POST(req: Request) {
   }
 }
 
-function calculateInitialItemizedSplits(
-  totalAmount: number,
-  payerId: string,
-  items: any[],
-  memberIds: string[],
-  unclaimedSplitType: string
-) {
-  const splitsMap: { [memberId: string]: number } = {};
-  memberIds.forEach((id) => {
-    splitsMap[id] = 0;
-  });
-
-  let claimedTotal = 0;
-
-  // Process items
-  items.forEach((item) => {
-    const price = item.price;
-    const claimants = item.claimedBy || [];
-
-    if (claimants.length > 0) {
-      claimedTotal += price;
-      const share = price / claimants.length;
-      claimants.forEach((cId: string) => {
-        if (splitsMap[cId] !== undefined) {
-          splitsMap[cId] += share;
-        }
-      });
-    }
-  });
-
-  const unclaimedAmount = totalAmount - claimedTotal;
-
-  if (unclaimedAmount > 0.01) {
-    if (unclaimedSplitType === "payer") {
-      if (splitsMap[payerId] !== undefined) {
-        splitsMap[payerId] += unclaimedAmount;
-      }
-    } else {
-      // Split equally among all members
-      const share = unclaimedAmount / memberIds.length;
-      memberIds.forEach((id) => {
-        if (splitsMap[id] !== undefined) {
-          splitsMap[id] += share;
-        }
-      });
-    }
-  }
-
-  return Object.keys(splitsMap).map((memberId) => ({
-    memberId,
-    amount: parseFloat(splitsMap[memberId].toFixed(2)),
-  }));
-}

@@ -2,8 +2,9 @@
 
 import { useState, useEffect, use } from "react";
 import styles from "@/styles/Claim.module.css";
-import { Check, AlertTriangle, Printer, Users, Receipt, Smile } from "lucide-react";
+import { Check, AlertTriangle, Receipt, Smile, ShieldAlert } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { useSession } from "next-auth/react";
 
 interface GroupMember {
   id: string;
@@ -27,6 +28,7 @@ interface Expense {
   items: ExpenseItem[];
   unclaimedSplitType: "equal" | "payer";
   currency: string;
+  submittedMembers?: string[];
 }
 
 interface Group {
@@ -34,10 +36,12 @@ interface Group {
   name: string;
   currency: string;
   members: GroupMember[];
+  createdBy: string;
 }
 
 export default function PublicClaimPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
+  const { data: session } = useSession();
 
   const [expense, setExpense] = useState<Expense | null>(null);
   const [group, setGroup] = useState<Group | null>(null);
@@ -177,6 +181,13 @@ export default function PublicClaimPage({ params }: { params: Promise<{ token: s
         const data = await res.json();
         setExpense(data.expense);
         setGroup(data.group);
+
+        // Re-initialize claims cache
+        const cache: { [itemId: string]: string[] } = {};
+        data.expense.items.forEach((item: ExpenseItem) => {
+          cache[item.id] = item.claimedBy || [];
+        });
+        setClaimsCache(cache);
       }
     } catch (err) {
       setError("An unexpected error occurred during submission.");
@@ -223,7 +234,22 @@ export default function PublicClaimPage({ params }: { params: Promise<{ token: s
     };
   }).filter(Boolean) as Array<{ id: string; name: string; fullPrice: number; claimantsCount: number; sharePrice: number }>;
 
+  const totalItemsSum = expense.items.reduce((sum, item) => sum + item.price, 0);
+  const additionalFee = Math.max(0, expense.amount - totalItemsSum);
+  const memberShareOfFee = additionalFee > 0 ? (additionalFee / group.members.length) : 0;
   const yourTotalShare = summaryReceiptItems.reduce((sum, item) => sum + item.sharePrice, 0);
+
+  // Claim Progress calculations
+  const totalMembers = group.members.length;
+  const submittedMembers = expense.submittedMembers || [];
+  const submittedCount = group.members.filter((m) => submittedMembers.includes(m.id)).length;
+  const remainingCount = Math.max(0, totalMembers - submittedCount);
+
+  // Host verification
+  const isHost = session?.user && (
+    (session.user as any).id === expense.payerId || 
+    (session.user as any).id === group.createdBy
+  );
 
   return (
     <div className={styles.container} style={{ maxWidth: "480px", margin: "0 auto", padding: "16px", paddingBottom: "48px" }}>
@@ -239,6 +265,59 @@ export default function PublicClaimPage({ params }: { params: Promise<{ token: s
             Select your name and check the items you consumed from **{expense.description}**.
           </p>
 
+          {/* Claim Progress Indicator */}
+          <div style={{
+            background: "rgba(255, 255, 255, 0.02)",
+            border: "1px solid rgba(255, 255, 255, 0.05)",
+            borderRadius: "10px",
+            padding: "12px",
+            marginBottom: "16px",
+            fontSize: "13px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "6px"
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ color: "var(--text-secondary)", fontWeight: "500" }}>Claim Progress</span>
+              <span style={{ color: remainingCount === 0 ? "var(--accent)" : "var(--primary)", fontWeight: "600" }}>
+                {submittedCount}/{totalMembers} Completed {remainingCount > 0 ? `(${remainingCount} remaining)` : "🎉"}
+              </span>
+            </div>
+            <div style={{ height: "6px", background: "rgba(255,255,255,0.05)", borderRadius: "3px", overflow: "hidden" }}>
+              <div style={{
+                height: "100%",
+                width: `${(submittedCount / totalMembers) * 100}%`,
+                background: remainingCount === 0 ? "var(--accent)" : "var(--primary)",
+                transition: "width 0.3s ease"
+              }} />
+            </div>
+          </div>
+
+          {/* Host Override Banner */}
+          {isHost && (
+            <div style={{
+              background: "rgba(99, 102, 241, 0.1)",
+              border: "1px solid rgba(99, 102, 241, 0.3)",
+              borderRadius: "10px",
+              padding: "12px",
+              marginBottom: "16px",
+              fontSize: "13px",
+              display: "flex",
+              gap: "10px",
+              alignItems: "flex-start"
+            }}>
+              <ShieldAlert size={18} style={{ color: "var(--primary)", flexShrink: 0, marginTop: "2px" }} />
+              <div>
+                <strong style={{ color: "var(--text-primary)", display: "block", marginBottom: "2px" }}>
+                  👑 Host Admin Mode Active
+                </strong>
+                <span style={{ color: "var(--text-secondary)", fontSize: "12px" }}>
+                  As the host/payer, you can select any member and edit their claims to correct mistakes.
+                </span>
+              </div>
+            </div>
+          )}
+
           {error && <div className="btn btn-danger" style={{ cursor: "default", padding: "10px", fontSize: "13px" }}>{error}</div>}
 
           <form onSubmit={handleSubmit} className="form" style={{ marginTop: "16px" }}>
@@ -252,11 +331,14 @@ export default function PublicClaimPage({ params }: { params: Promise<{ token: s
                 required
               >
                 <option value="">-- Choose your name --</option>
-                {group.members.map((member) => (
-                  <option key={member.id} value={member.id}>
-                    {member.name} {member.isGuest ? "(Guest)" : ""}
-                  </option>
-                ))}
+                {group.members.map((member) => {
+                  const hasSubmitted = (expense.submittedMembers || []).includes(member.id);
+                  return (
+                    <option key={member.id} value={member.id}>
+                      {member.name} {member.isGuest ? "(Guest)" : ""} {hasSubmitted ? "✓ (Completed)" : ""}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
@@ -307,6 +389,30 @@ export default function PublicClaimPage({ params }: { params: Promise<{ token: s
                   })}
                 </div>
 
+                {/* Tax & Fees Info */}
+                {additionalFee > 0 && (
+                  <div style={{
+                    fontSize: "12px",
+                    color: "var(--text-secondary)",
+                    background: "rgba(255, 255, 255, 0.03)",
+                    border: "1px solid rgba(255, 255, 255, 0.08)",
+                    borderRadius: "8px",
+                    padding: "10px",
+                    marginTop: "8px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "4px"
+                  }}>
+                    <span style={{ fontWeight: "600", color: "var(--primary)" }}>Tax & Fees Splitting</span>
+                    <span>
+                      This bill includes <strong>{formatCurrency(additionalFee, group.currency)}</strong> in additional fees (taxes, GST, delivery, etc.) split equally.
+                    </span>
+                    <span>
+                      Each of the {group.members.length} members pays a base share of <strong>{formatCurrency(memberShareOfFee, group.currency)}</strong>.
+                    </span>
+                  </div>
+                )}
+
                 {summaryReceiptItems.length > 0 && (
                   <div className={styles.summaryReceipt}>
                     <h3 className={styles.receiptTitle}>Live Receipt Summary</h3>
@@ -323,9 +429,17 @@ export default function PublicClaimPage({ params }: { params: Promise<{ token: s
                         <span>{formatCurrency(item.sharePrice, group.currency)}</span>
                       </div>
                     ))}
+                    
+                    {additionalFee > 0 && (
+                      <div className={styles.receiptItem} style={{ borderTop: "1px dashed var(--card-border)", paddingTop: "8px", marginTop: "4px" }}>
+                        <span>Additional Fees (Taxes/GST/Delivery)</span>
+                        <span>{formatCurrency(memberShareOfFee, group.currency)}</span>
+                      </div>
+                    )}
+
                     <div className={styles.receiptTotalRow}>
                       <span>Your Share:</span>
-                      <span>{formatCurrency(yourTotalShare, group.currency)}</span>
+                      <span>{formatCurrency(yourTotalShare + memberShareOfFee, group.currency)}</span>
                     </div>
                   </div>
                 )}
@@ -379,9 +493,16 @@ export default function PublicClaimPage({ params }: { params: Promise<{ token: s
                   );
                 })}
               
+              {additionalFee > 0 && (
+                <div className={styles.receiptPrintLine} style={{ borderTop: "1px dashed rgba(255,255,255,0.1)", paddingTop: "6px", marginTop: "4px" }}>
+                  <span>TAX & FEES (1/{group.members.length})</span>
+                  <span>{formatCurrency(memberShareOfFee, group.currency)}</span>
+                </div>
+              )}
+              
               <div className={styles.receiptPrintTotal}>
                 <span>TOTAL SHARE:</span>
-                <span>{formatCurrency(yourTotalShare, group.currency)}</span>
+                <span>{formatCurrency(yourTotalShare + memberShareOfFee, group.currency)}</span>
               </div>
             </div>
           </div>
@@ -391,7 +512,7 @@ export default function PublicClaimPage({ params }: { params: Promise<{ token: s
             className="btn btn-secondary"
             style={{ marginTop: "12px" }}
           >
-            Edit Claims
+            {isHost ? "Manage More Claims" : "Edit Claims"}
           </button>
         </div>
       )}

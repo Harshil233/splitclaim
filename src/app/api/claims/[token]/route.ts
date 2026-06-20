@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import Group from "@/lib/models/Group";
 import Expense from "@/lib/models/Expense";
+import { calculateItemizedSplits } from "@/lib/utils";
 
 export async function GET(
   req: Request,
@@ -83,60 +84,26 @@ export async function POST(
       };
     });
 
-    // Recalculate final splits for the entire expense
+    // Recalculate final splits for the entire expense using the helper
     const memberIds = group.members.map((m: any) => m.id);
-    const splitsMap: { [memberId: string]: number } = {};
-    
-    memberIds.forEach((id: string) => {
-      splitsMap[id] = 0;
-    });
+    const finalSplits = calculateItemizedSplits(
+      expense.amount,
+      expense.payerId,
+      updatedItems,
+      memberIds,
+      expense.unclaimedSplitType || "payer"
+    );
 
-    let claimedTotal = 0;
-
-    // Sum up claimed items
-    updatedItems.forEach((item: any) => {
-      const price = item.price;
-      const claimants: string[] = item.claimedBy || [];
-
-      if (claimants.length > 0) {
-        claimedTotal += price;
-        const share = price / claimants.length;
-        claimants.forEach((cId: string) => {
-          if (splitsMap[cId] !== undefined) {
-            splitsMap[cId] += share;
-          }
-        });
-      }
-    });
-
-    // Handle unclaimed items
-    const unclaimedAmount = expense.amount - claimedTotal;
-
-    if (unclaimedAmount > 0.01) {
-      if (expense.unclaimedSplitType === "payer") {
-        if (splitsMap[expense.payerId] !== undefined) {
-          splitsMap[expense.payerId] += unclaimedAmount;
-        }
-      } else {
-        // split equally among all group members
-        const share = unclaimedAmount / memberIds.length;
-        memberIds.forEach((id: string) => {
-          if (splitsMap[id] !== undefined) {
-            splitsMap[id] += share;
-          }
-        });
-      }
+    // Track submitted members
+    const submitted = expense.submittedMembers || [];
+    if (!submitted.includes(memberId)) {
+      submitted.push(memberId);
     }
-
-    // Format splits list
-    const finalSplits = Object.keys(splitsMap).map((mId) => ({
-      memberId: mId,
-      amount: parseFloat(splitsMap[mId].toFixed(2)),
-    }));
 
     // Save back to DB
     expense.items = updatedItems;
     expense.splits = finalSplits;
+    expense.submittedMembers = submitted;
     await expense.save();
 
     return NextResponse.json({ expense, group });

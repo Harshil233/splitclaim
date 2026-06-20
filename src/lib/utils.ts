@@ -100,3 +100,81 @@ export function copyToClipboard(text: string): boolean {
   }
 }
 
+export function calculateItemizedSplits(
+  totalAmount: number,
+  payerId: string,
+  items: Array<{ id: string; name: string; price: number; claimedBy?: string[] }>,
+  memberIds: string[],
+  unclaimedSplitType: "equal" | "payer"
+) {
+  const splitsMap: { [memberId: string]: number } = {};
+  memberIds.forEach((id) => {
+    splitsMap[id] = 0;
+  });
+
+  // Calculate sum of all items in the checklist
+  const totalItemsSum = items.reduce((sum, item) => sum + (item.price || 0), 0);
+
+  // Additional fee = totalAmount - sum of all items (minimum 0)
+  const additionalFee = Math.max(0, totalAmount - totalItemsSum);
+
+  // Split additional fee equally among all members
+  if (additionalFee > 0 && memberIds.length > 0) {
+    const additionalFeeShare = additionalFee / memberIds.length;
+    memberIds.forEach((id) => {
+      splitsMap[id] += additionalFeeShare;
+    });
+  }
+
+  // Calculate claimed and unclaimed portions of the items list
+  items.forEach((item) => {
+    const price = item.price || 0;
+    const claimants = item.claimedBy || [];
+
+    if (claimants.length > 0) {
+      // Split item price among claimants
+      const share = price / claimants.length;
+      claimants.forEach((cId: string) => {
+        if (splitsMap[cId] !== undefined) {
+          splitsMap[cId] += share;
+        }
+      });
+    } else {
+      // Item is unclaimed. Apply unclaimed split type logic
+      if (unclaimedSplitType === "payer") {
+        if (splitsMap[payerId] !== undefined) {
+          splitsMap[payerId] += price;
+        }
+      } else {
+        // Split equally among all group members
+        if (memberIds.length > 0) {
+          const share = price / memberIds.length;
+          memberIds.forEach((id) => {
+            if (splitsMap[id] !== undefined) {
+              splitsMap[id] += share;
+            }
+          });
+        }
+      }
+    }
+  });
+
+  // Round and adjust for float precision/rounding errors against the payer
+  const result = Object.keys(splitsMap).map((memberId) => ({
+    memberId,
+    amount: parseFloat(splitsMap[memberId].toFixed(2)),
+  }));
+
+  const currentSum = result.reduce((sum, item) => sum + item.amount, 0);
+  const diff = parseFloat((totalAmount - currentSum).toFixed(2));
+  if (Math.abs(diff) > 0.001) {
+    const targetItem = result.find((r) => r.memberId === payerId) || result[0];
+    if (targetItem) {
+      targetItem.amount = parseFloat((targetItem.amount + diff).toFixed(2));
+    }
+  }
+
+  return result;
+}
+
+

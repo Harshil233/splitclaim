@@ -40,6 +40,7 @@ interface Expense {
   splits: ExpenseSplit[];
   items?: ExpenseItem[];
   claimToken?: string;
+  submittedMembers?: string[];
   createdAt: string;
 }
 
@@ -380,29 +381,54 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
                         <span className={styles.expenseSub}>
                           Paid by {payerName} • {new Date(exp.date).toLocaleDateString()}
                         </span>
-                        {exp.splitType === "itemized" && exp.claimToken && (
-                          <div>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCopyClaimLink(exp.claimToken!);
-                              }}
-                              className={styles.shareBtn}
-                            >
-                              {copiedToken === exp.claimToken ? (
-                                <>
-                                  <CheckCircle size={12} />
-                                  Copied!
-                                </>
-                              ) : (
-                                <>
-                                  <Share2 size={12} />
-                                  Share Claim Link
-                                </>
-                              )}
-                            </button>
-                          </div>
-                        )}
+                        {exp.splitType === "itemized" && exp.claimToken && (() => {
+                          const total = group.members.length;
+                          const submitted = exp.submittedMembers || [];
+                          const subCount = group.members.filter((m) => submitted.includes(m.id)).length;
+                          const remCount = Math.max(0, total - subCount);
+                          
+                          return (
+                            <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "8px" }}>
+                              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleCopyClaimLink(exp.claimToken!);
+                                  }}
+                                  className={styles.shareBtn}
+                                >
+                                  {copiedToken === exp.claimToken ? (
+                                    <>
+                                      <CheckCircle size={12} />
+                                      Copied!
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Share2 size={12} />
+                                      Share Claim Link
+                                    </>
+                                  )}
+                                </button>
+                                
+                                <span style={{
+                                  fontSize: "11px",
+                                  fontWeight: "500",
+                                  padding: "3px 8px",
+                                  borderRadius: "12px",
+                                  backgroundColor: remCount === 0 ? "rgba(16, 185, 129, 0.1)" : "rgba(255, 255, 255, 0.05)",
+                                  color: remCount === 0 ? "var(--accent)" : "var(--text-secondary)",
+                                  border: `1px solid ${remCount === 0 ? "rgba(16, 185, 129, 0.2)" : "rgba(255, 255, 255, 0.08)"}`
+                                }}>
+                                  {remCount === 0 ? (
+                                    "🎉 All Claimed!"
+                                  ) : (
+                                    `${subCount}/${total} Claimed (${remCount} remaining)`
+                                  )}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
                       <div className={styles.expenseAmountCol}>
                         <span className={styles.expenseAmt}>
