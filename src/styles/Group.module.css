@@ -232,10 +232,15 @@
   border-radius: var(--border-radius-md);
   padding: 16px;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: stretch;
   transition: background-color var(--transition-fast);
   cursor: pointer;
+}
+
+.expenseCardExpanded {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
 .expenseCard:hover {

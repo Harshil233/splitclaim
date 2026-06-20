@@ -91,7 +91,8 @@ export async function POST(
       expense.payerId,
       updatedItems,
       memberIds,
-      expense.unclaimedSplitType || "payer"
+      expense.unclaimedSplitType || "equal",
+      expense.unclaimedMembers || []
     );
 
     // Track submitted members

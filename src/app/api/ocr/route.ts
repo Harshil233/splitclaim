@@ -30,6 +30,8 @@ Return a JSON object with:
 Rules for items extraction:
 - If there is an item-level discount or deal that reduces the price of a specific item, extract the final net price paid for that item rather than its original pre-discount price.
 - If an item has a quantity greater than 1, split it into separate individual items with a quantity of 1 and their corresponding unit price (e.g. if the receipt says '2 x Onion  ₹58.0', return two separate items: 'Onion (1/2)' with price 29.0, and 'Onion (2/2)' with price 29.0).
+- If individual item prices are missing from the receipt but a grand total is present, divide the grand total evenly ONLY among the main food/beverage/product items, NOT among free add-ons, seasonings, sauces, or carry bags.
+- Ignore free items, zero-priced items, or free seasonings/condiments/add-ons (e.g. Oregano sachets, Chilli Flakes sachets, ketchup packets, tissues, carry bags) if they have a price of 0, are included for free, or have negligible/no price listed.
 - Ignore billing summaries like listing price, subtotal, taxes, cgst, sgst, round off, global discounts (discounts applied to the entire bill), delivery fee, handling fee, or payment information.
 - If there are continuation screenshots with overlapping items, merge them and do not list duplicate items.
 - Ensure the prices match the item prices listed next to them. Do not include currency symbols in the price number.`;
@@ -73,39 +75,70 @@ Rules for items extraction:
       }
     };
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const GEMINI_MODELS = [
+      "gemini-3.1-flash-lite",
+      "gemini-2.5-flash",
+      "gemini-2.0-flash",
+      "gemini-2.0-flash-lite",
+      "gemini-2.0-flash-lite-preview-02-05",
+      "gemini-1.5-flash",
+      "gemini-1.5-pro"
+    ];
 
-    const apiResponse = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(payload)
-    });
+    let lastError: any = null;
+    let textResult = "";
 
-    if (!apiResponse.ok) {
-      const errorText = await apiResponse.text();
-      console.error("Gemini API Error Response:", errorText);
-      return NextResponse.json(
-        { success: false, error: `Gemini API call failed: ${apiResponse.statusText}` },
-        { status: 502 }
-      );
+    for (const model of GEMINI_MODELS) {
+      try {
+        console.log(`Attempting OCR with model: ${model}`);
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+        const apiResponse = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!apiResponse.ok) {
+          const errorText = await apiResponse.text();
+          console.warn(`Gemini API call failed for model ${model}:`, errorText);
+          lastError = new Error(`Model ${model} failed: ${apiResponse.status} ${apiResponse.statusText}. Response: ${errorText}`);
+          continue; // Try the next model
+        }
+
+        const resData = await apiResponse.json();
+        textResult = resData.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (!textResult) {
+          console.warn(`Gemini API returned empty content for model ${model}`, JSON.stringify(resData));
+          lastError = new Error(`Model ${model} returned empty content.`);
+          continue; // Try the next model
+        }
+
+        console.log(`OCR successfully completed using model: ${model}`);
+        break; // Successfully got result, stop checking models
+      } catch (err: any) {
+        console.warn(`Error during OCR attempt with model ${model}:`, err.message);
+        lastError = err;
+      }
     }
 
-    const resData = await apiResponse.json();
-    const textResult = resData.candidates?.[0]?.content?.parts?.[0]?.text;
-
     if (!textResult) {
-      console.error("Gemini API returned empty content", JSON.stringify(resData));
+      console.error("All Gemini models failed to process the OCR request.");
       return NextResponse.json(
-        { success: false, error: "Gemini API did not return any extracted text." },
-        { status: 500 }
+        { success: false, error: `All Gemini models failed. Last error: ${lastError?.message || "Unknown error"}` },
+        { status: 502 }
       );
     }
 
     // Parse the JSON string from Gemini
     const ocrResult = JSON.parse(textResult);
-    const items = ocrResult.items || [];
+    const items = (ocrResult.items || []).map((item: any) => ({
+      name: item.name,
+      price: Math.round((parseFloat(item.price) || 0) * 100) / 100
+    }));
     const grandTotal = parseFloat(ocrResult.grandTotal) || 0;
 
     return NextResponse.json({

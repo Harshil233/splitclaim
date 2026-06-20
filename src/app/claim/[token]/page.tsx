@@ -29,6 +29,7 @@ interface Expense {
   unclaimedSplitType: "equal" | "payer";
   currency: string;
   submittedMembers?: string[];
+  unclaimedMembers?: string[];
 }
 
 interface Group {
@@ -217,27 +218,64 @@ export default function PublicClaimPage({ params }: { params: Promise<{ token: s
 
   const selectedMember = group.members.find((m) => m.id === selectedMemberId);
 
-  // Calculate receipt summary items
+  const totalItemsSum = expense.items.reduce((sum, item) => sum + item.price, 0);
+  const scaleRatio = totalItemsSum > 0.01 ? expense.amount / totalItemsSum : 1;
+  const netDifference = expense.amount - totalItemsSum;
+
+  // Calculate this member's exact pre-tax share based on the live claims cache
+  const preTaxShares: { [memberId: string]: number } = {};
+  group.members.forEach((m) => { preTaxShares[m.id] = 0; });
+
+  expense.items.forEach((item) => {
+    const claimants = claimsCache[item.id] || [];
+    if (claimants.length > 0) {
+      const share = item.price / claimants.length;
+      claimants.forEach((cId) => {
+        if (preTaxShares[cId] !== undefined) {
+          preTaxShares[cId] += share;
+        }
+      });
+    } else {
+      if (expense.unclaimedSplitType === "payer") {
+        if (preTaxShares[expense.payerId] !== undefined) {
+          preTaxShares[expense.payerId] += item.price;
+        }
+      } else {
+        const share = item.price / group.members.length;
+        group.members.forEach((m) => {
+          if (preTaxShares[m.id] !== undefined) {
+            preTaxShares[m.id] += share;
+          }
+        });
+      }
+    }
+  });
+
+  const memberPreTaxShare = preTaxShares[selectedMemberId] || 0;
+  const yourTotalShare = totalItemsSum > 0.01 
+    ? (memberPreTaxShare / totalItemsSum) * expense.amount 
+    : expense.amount / group.members.length;
+
+  // Calculate user's checked items share (scaled proportionally)
+  let itemsShare = 0;
   const summaryReceiptItems = selectedItemIds.map((itemId) => {
     const item = expense.items.find((i) => i.id === itemId);
     if (!item) return null;
 
     const claimantsCount = Math.max(claimsCache[itemId]?.length || 1, 1);
-    const yourSharePrice = item.price / claimantsCount;
+    const yourSharePrice = (item.price / claimantsCount) * scaleRatio;
+    itemsShare += yourSharePrice;
 
     return {
       id: item.id,
       name: item.name,
-      fullPrice: item.price,
+      fullPrice: item.price * scaleRatio,
       claimantsCount,
       sharePrice: yourSharePrice,
     };
   }).filter(Boolean) as Array<{ id: string; name: string; fullPrice: number; claimantsCount: number; sharePrice: number }>;
 
-  const totalItemsSum = expense.items.reduce((sum, item) => sum + item.price, 0);
-  const netDifference = expense.amount - totalItemsSum;
-  const memberShareOfDifference = netDifference / group.members.length;
-  const yourTotalShare = summaryReceiptItems.reduce((sum, item) => sum + item.sharePrice, 0);
+  const differenceShare = selectedMemberId ? yourTotalShare - itemsShare : 0;
 
   // Claim Progress calculations
   const totalMembers = group.members.length;
@@ -404,17 +442,14 @@ export default function PublicClaimPage({ params }: { params: Promise<{ token: s
                     gap: "4px"
                   }}>
                     <span style={{ fontWeight: "600", color: "var(--primary)" }}>
-                      {netDifference > 0 ? "Tax & Fees Splitting" : "Discount Splitting"}
+                      {netDifference > 0 ? "Proportional Tax & Fees Splitting" : "Proportional Discount Splitting"}
                     </span>
                     <span>
                       {netDifference > 0 ? (
-                        <>This bill includes <strong>{formatCurrency(netDifference, group.currency)}</strong> in additional fees (taxes, GST, delivery, etc.) split equally.</>
+                        <>This bill includes <strong>{formatCurrency(netDifference, group.currency)}</strong> in additional fees (taxes, GST, delivery, etc.) split proportionally based on item consumption.</>
                       ) : (
-                        <>This bill includes a global discount of <strong>{formatCurrency(Math.abs(netDifference), group.currency)}</strong> split equally.</>
+                        <>This bill includes a global discount of <strong>{formatCurrency(Math.abs(netDifference), group.currency)}</strong> split proportionally based on item consumption.</>
                       )}
-                    </span>
-                    <span>
-                      Each of the {group.members.length} members receives a share of <strong>{formatCurrency(memberShareOfDifference, group.currency)}</strong>.
                     </span>
                   </div>
                 )}
@@ -436,16 +471,16 @@ export default function PublicClaimPage({ params }: { params: Promise<{ token: s
                       </div>
                     ))}
                     
-                    {Math.abs(netDifference) > 0.01 && (
+                    {Math.abs(differenceShare) > 0.01 && (
                       <div className={styles.receiptItem} style={{ borderTop: "1px dashed var(--card-border)", paddingTop: "8px", marginTop: "4px" }}>
-                        <span>{netDifference > 0 ? "Additional Fees (Taxes/GST/Delivery)" : "Global Discount"}</span>
-                        <span>{formatCurrency(memberShareOfDifference, group.currency)}</span>
+                        <span>{differenceShare > 0 ? "Taxes & Fees Share" : "Discount Share"}</span>
+                        <span>{formatCurrency(differenceShare, group.currency)}</span>
                       </div>
                     )}
 
                     <div className={styles.receiptTotalRow}>
                       <span>Your Share:</span>
-                      <span>{formatCurrency(yourTotalShare + memberShareOfDifference, group.currency)}</span>
+                      <span>{formatCurrency(yourTotalShare, group.currency)}</span>
                     </div>
                   </div>
                 )}
@@ -486,7 +521,7 @@ export default function PublicClaimPage({ params }: { params: Promise<{ token: s
                 .filter((item) => item.claimedBy && item.claimedBy.includes(selectedMemberId))
                 .map((item) => {
                   const claimantsCount = item.claimedBy.length;
-                  const price = item.price / claimantsCount;
+                  const price = (item.price / claimantsCount) * scaleRatio;
                   
                   return (
                     <div key={item.id} className={styles.receiptPrintLine}>
@@ -499,16 +534,16 @@ export default function PublicClaimPage({ params }: { params: Promise<{ token: s
                   );
                 })}
               
-              {Math.abs(netDifference) > 0.01 && (
-                <div className={styles.receiptPrintLine} style={{ borderTop: "1px dashed rgba(255,255,255,0.1)", paddingTop: "6px", marginTop: "4px" }}>
-                  <span>{netDifference > 0 ? "TAX & FEES" : "DISCOUNT"} (1/{group.members.length})</span>
-                  <span>{formatCurrency(memberShareOfDifference, group.currency)}</span>
+              {Math.abs(differenceShare) > 0.01 && (
+                <div className={styles.receiptPrintLine} style={{ fontSize: "11px", color: "#94a3b8", borderTop: "1px dashed rgba(255,255,255,0.05)", paddingTop: "4px" }}>
+                  <span>{differenceShare > 0 ? "TAX & FEES" : "DISCOUNT"}</span>
+                  <span>{formatCurrency(differenceShare, group.currency)}</span>
                 </div>
               )}
               
               <div className={styles.receiptPrintTotal}>
                 <span>TOTAL SHARE:</span>
-                <span>{formatCurrency(yourTotalShare + memberShareOfDifference, group.currency)}</span>
+                <span>{formatCurrency(yourTotalShare, group.currency)}</span>
               </div>
             </div>
           </div>

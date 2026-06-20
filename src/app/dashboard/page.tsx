@@ -12,7 +12,7 @@ interface GroupSummary {
   _id: string;
   name: string;
   currency: string;
-  members: Array<{ id: string; name: string }>;
+  members: Array<{ id: string; name: string; email?: string }>;
   userBalance: number;
 }
 
@@ -124,20 +124,52 @@ export default function DashboardPage() {
             </Link>
           </div>
         ) : (
-          groups.map((group) => (
-            <div 
-              key={group._id} 
-              className={styles.groupCard}
-              onClick={() => router.push(`/groups/${group._id}`)}
-            >
-              <div className={styles.groupMeta}>
-                <span className={styles.groupName}>{group.name}</span>
-                <span className={styles.groupMembers}>
-                  <Users size={12} />
-                  {group.members.length} members
-                </span>
-              </div>
-              <div className={styles.groupBalance}>
+          groups.map((group) => {
+            const isOneOnOne = group.members.length === 2;
+            let displayName = group.name;
+            
+            if (isOneOnOne) {
+              const currentUserEmail = session?.user?.email?.toLowerCase();
+              const currentUserId = (session?.user as any)?.id;
+              const friendMember = group.members.find(
+                (m) => m.id !== currentUserId && (!m.email || m.email.toLowerCase() !== currentUserEmail)
+              );
+              if (friendMember) {
+                displayName = friendMember.name;
+              }
+            }
+
+            return (
+              <div 
+                key={group._id} 
+                className={styles.groupCard}
+                onClick={() => router.push(`/groups/${group._id}`)}
+              >
+                <div className={styles.groupMeta}>
+                  <span className={styles.groupName}>{displayName}</span>
+                  {isOneOnOne ? (
+                    <span 
+                      style={{ 
+                        fontSize: "10px", 
+                        fontWeight: 700, 
+                        background: "rgba(99, 102, 241, 0.15)", 
+                        color: "#a5b4fc", 
+                        padding: "2px 6px", 
+                        borderRadius: "4px",
+                        width: "fit-content",
+                        marginTop: "4px"
+                      }}
+                    >
+                      Direct Split
+                    </span>
+                  ) : (
+                    <span className={styles.groupMembers}>
+                      <Users size={12} />
+                      {group.members.length} members
+                    </span>
+                  )}
+                </div>
+                <div className={styles.groupBalance}>
                 {group.userBalance > 0 ? (
                   <>
                     <span className={styles.balanceText}>you are owed</span>
@@ -162,7 +194,7 @@ export default function DashboardPage() {
                 )}
               </div>
             </div>
-          ))
+          )})
         )}
       </div>
     </div>

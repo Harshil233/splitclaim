@@ -56,6 +56,8 @@ export default function NewGroupPage() {
   };
 
   const handleRemoveMember = (index: number) => {
+    const member = members[index];
+    if (!window.confirm(`Are you sure you want to remove "${member?.name || "this member"}"?`)) return;
     setMembers(members.filter((_, i) => i !== index));
   };
 

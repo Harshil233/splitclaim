@@ -119,6 +119,7 @@ export async function POST(req: Request) {
       currency: currency || "INR",
       members: processedMembers,
       createdBy: userId,
+      claimToken: crypto.randomUUID(),
     });
 
     return NextResponse.json({ group }, { status: 201 });

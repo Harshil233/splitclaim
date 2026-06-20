@@ -23,6 +23,7 @@ export async function POST(req: Request) {
       splits,
       items,
       unclaimedSplitType,
+      unclaimedMembers,
     } = await req.json();
 
     if (!groupId || !description || !amount || !payerId || !splitType) {
@@ -51,7 +52,8 @@ export async function POST(req: Request) {
         payerId,
         items || [],
         group.members.map((m: any) => m.id),
-        unclaimedSplitType || "equal"
+        unclaimedSplitType || "equal",
+        unclaimedMembers || []
       );
     }
 
@@ -64,6 +66,7 @@ export async function POST(req: Request) {
       splits: finalSplits,
       items: items || [],
       unclaimedSplitType: unclaimedSplitType || "equal",
+      unclaimedMembers: unclaimedMembers || [],
       claimToken,
     });
 

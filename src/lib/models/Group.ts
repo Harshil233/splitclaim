@@ -42,6 +42,11 @@ const GroupSchema = new Schema(
       ref: 'User',
       required: true,
     },
+    claimToken: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
   },
   {
     timestamps: true,

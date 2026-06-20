@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import Tesseract from "tesseract.js";
 import styles from "@/styles/Expense.module.css";
-import { Upload, Plus, Trash2, Check, Camera } from "lucide-react";
+import { Upload, Plus, Trash2, Check, Camera, AlertTriangle } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 interface ScannedItem {
@@ -105,6 +105,15 @@ export default function BillScanner({ onItemsConfirmed, currency }: BillScannerP
   const [progress, setProgress] = useState(0);
   const [statusText, setStatusText] = useState("");
   const [error, setError] = useState("");
+  const [isFallbackOCR, setIsFallbackOCR] = useState(false);
+
+  const handleClearAll = () => {
+    if (!window.confirm("Are you sure you want to clear all scanned items?")) return;
+    setItems([]);
+    setScannedGrandTotal(undefined);
+    setIsFallbackOCR(false);
+    setError("");
+  };
 
   const loadPdfJs = (): Promise<any> => {
     return new Promise((resolve, reject) => {
@@ -181,6 +190,7 @@ export default function BillScanner({ onItemsConfirmed, currency }: BillScannerP
     setLoading(true);
     setProgress(0);
     setError("");
+    setIsFallbackOCR(false);
     setStatusText("AI scanning in progress...");
 
     try {
@@ -212,7 +222,7 @@ export default function BillScanner({ onItemsConfirmed, currency }: BillScannerP
         const itemsWithIds: ScannedItem[] = data.items.map((item: any) => ({
           id: Math.random().toString(36).substring(2, 9),
           name: item.name,
-          price: parseFloat(item.price) || 0
+          price: Math.round((parseFloat(item.price) || 0) * 100) / 100
         }));
 
         const merged = mergeItemLists(items, itemsWithIds);
@@ -231,9 +241,11 @@ export default function BillScanner({ onItemsConfirmed, currency }: BillScannerP
 
       // If AI scanning failed or is not configured, fall back to Tesseract!
       console.warn("AI scanning failed or not configured, falling back to local Tesseract OCR:", data.error || "Unknown error");
+      setIsFallbackOCR(true);
       await processFilesLocal(files);
     } catch (err: any) {
       console.error("AI scanning error, trying local fallback:", err);
+      setIsFallbackOCR(true);
       await processFilesLocal(files);
     }
   };
@@ -416,7 +428,7 @@ export default function BillScanner({ onItemsConfirmed, currency }: BillScannerP
           parsed.push({
             id: Math.random().toString(36).substring(2, 9),
             name: name,
-            price: price,
+            price: Math.round(price * 100) / 100,
           });
         } else {
           let foundName = "";
@@ -449,7 +461,7 @@ export default function BillScanner({ onItemsConfirmed, currency }: BillScannerP
             parsed.push({
               id: Math.random().toString(36).substring(2, 9),
               name: foundName,
-              price: price,
+              price: Math.round(price * 100) / 100,
             });
           }
         }
@@ -474,6 +486,8 @@ export default function BillScanner({ onItemsConfirmed, currency }: BillScannerP
   };
 
   const handleDeleteItem = (id: string) => {
+    const item = items.find((i) => i.id === id);
+    if (!window.confirm(`Are you sure you want to delete "${item?.name || "this item"}"?`)) return;
     setItems(items.filter((item) => item.id !== id));
   };
 
@@ -546,6 +560,22 @@ export default function BillScanner({ onItemsConfirmed, currency }: BillScannerP
           >
             <Camera size={18} /> Scan with Camera
           </button>
+
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", margin: "4px 0" }}>
+            <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "1px" }}>or</span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setItems([{ id: Math.random().toString(36).substring(2, 9), name: "", price: 0 }]);
+              setIsFallbackOCR(false);
+            }}
+            className="btn btn-secondary"
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", padding: "12px", border: "1px dashed var(--card-border)" }}
+          >
+            <Plus size={18} /> Skip Scan & Input Manually
+          </button>
         </div>
       )}
 
@@ -562,26 +592,65 @@ export default function BillScanner({ onItemsConfirmed, currency }: BillScannerP
       )}
 
       {error && (
-        <div className="btn btn-danger" style={{ cursor: "default", padding: "10px", fontSize: "13px" }}>
+        <div className="btn btn-danger" style={{ cursor: "default", padding: "10px", fontSize: "13px", width: "100%", textAlign: "center" }}>
           {error}
         </div>
       )}
 
       {items.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          {isFallbackOCR && (
+            <div 
+              style={{
+                background: "rgba(245, 158, 11, 0.08)",
+                border: "1px solid rgba(245, 158, 11, 0.3)",
+                borderRadius: "8px",
+                padding: "14px 16px",
+                color: "#fbbf24",
+                fontSize: "13px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "6px",
+                marginBottom: "8px"
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: "bold" }}>
+                <AlertTriangle size={18} style={{ color: "#fbbf24", flexShrink: 0 }} />
+                <span>AI Scan Limit Reached (Local Fallback Active)</span>
+              </div>
+              <p style={{ margin: 0, color: "rgba(255, 255, 255, 0.8)", lineHeight: "1.4" }}>
+                The Gemini AI scanning quota is currently exhausted. The system has automatically fallen back to local offline OCR (Tesseract), which has lower accuracy and may produce spelling errors or gibberish.
+              </p>
+              <p style={{ margin: 0, fontWeight: 500 }}>
+                Please review, edit, or delete items below to match your bill.
+              </p>
+            </div>
+          )}
+
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-secondary)" }}>
               Edit Parsed Items
             </span>
-            <button
-              type="button"
-              onClick={triggerFileSelect}
-              className="btn btn-secondary"
-              disabled={loading}
-              style={{ width: "auto", padding: "6px 12px", fontSize: "12px" }}
-            >
-              Scan More
-            </button>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button
+                type="button"
+                onClick={handleClearAll}
+                className="btn btn-secondary"
+                disabled={loading}
+                style={{ width: "auto", padding: "6px 12px", fontSize: "12px", borderColor: "rgba(239, 68, 68, 0.3)" }}
+              >
+                Clear All
+              </button>
+              <button
+                type="button"
+                onClick={triggerFileSelect}
+                className="btn btn-secondary"
+                disabled={loading}
+                style={{ width: "auto", padding: "6px 12px", fontSize: "12px" }}
+              >
+                Scan More
+              </button>
+            </div>
           </div>
 
           <div className={styles.tableContainer}>
@@ -602,7 +671,7 @@ export default function BillScanner({ onItemsConfirmed, currency }: BillScannerP
                 />
                 <input
                   type="number"
-                  step="0.01"
+                  step="any"
                   className={styles.itemEditInput}
                   style={{ textAlign: "right" }}
                   value={item.price || ""}

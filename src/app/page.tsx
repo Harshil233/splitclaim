@@ -3,7 +3,7 @@
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import styles from "@/styles/Home.module.css";
-import { Sparkles, ScanLine, Users, Share2, ArrowRight } from "lucide-react";
+import { Sparkles, ScanLine, Users, Share2, ArrowRight, Printer } from "lucide-react";
 
 export default function HomePage() {
   const { data: session } = useSession();
@@ -16,7 +16,7 @@ export default function HomePage() {
         </div>
         <h1 className={styles.title}>Split Bills.<br />Claim Your Share.</h1>
         <p className={styles.subtitle}>
-          The easiest way to split group expenses. Upload bill screenshots, extract items with client-side OCR, and share links for friends to claim what they consumed.
+          The easiest way to split group expenses. Add or scan a bill to extract items instantly, and share links for friends to claim what they consumed.
         </p>
 
         <div className={styles.ctaGroup}>
@@ -44,9 +44,9 @@ export default function HomePage() {
             <ScanLine size={20} />
           </div>
           <div className={styles.featureMeta}>
-            <h3 className={styles.featureTitle}>OCR Item Extraction</h3>
+            <h3 className={styles.featureTitle}>Scan & Extract Items</h3>
             <p className={styles.featureDesc}>
-              Upload receipt screenshots. Tesseract.js processes them locally on your device to extract items and prices instantly with zero server cost.
+              Add or scan a bill to extract items and prices instantly. Generate a shareable URL to split unequally across friends based on what they consumed.
             </p>
           </div>
         </div>
@@ -71,6 +71,18 @@ export default function HomePage() {
             <h3 className={styles.featureTitle}>Flexible Splitting</h3>
             <p className={styles.featureDesc}>
               Support for traditional splits (equal, unequal, percentage) alongside itemized claims. Unclaimed items split equally or assign to host.
+            </p>
+          </div>
+        </div>
+
+        <div className={styles.featureCard}>
+          <div className={styles.featureIcon}>
+            <Printer size={20} />
+          </div>
+          <div className={styles.featureMeta}>
+            <h3 className={styles.featureTitle}>Export PDF Reports</h3>
+            <p className={styles.featureDesc}>
+              Generate and export comprehensive trip ledgers and audit reports to PDF. Keep clean settlement history and print sheets whenever you need.
             </p>
           </div>
         </div>

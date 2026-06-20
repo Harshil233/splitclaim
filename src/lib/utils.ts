@@ -105,26 +105,19 @@ export function calculateItemizedSplits(
   payerId: string,
   items: Array<{ id: string; name: string; price: number; claimedBy?: string[] }>,
   memberIds: string[],
-  unclaimedSplitType: "equal" | "payer"
+  unclaimedSplitType: "equal" | "payer",
+  unclaimedMembers?: string[]
 ) {
+  const preTaxShares: { [memberId: string]: number } = {};
   const splitsMap: { [memberId: string]: number } = {};
+  
   memberIds.forEach((id) => {
+    preTaxShares[id] = 0;
     splitsMap[id] = 0;
   });
 
   // Calculate sum of all items in the checklist
   const totalItemsSum = items.reduce((sum, item) => sum + (item.price || 0), 0);
-
-  // Calculate net difference (taxes/fees if positive, discount if negative)
-  const netDifference = totalAmount - totalItemsSum;
-
-  // Split this difference equally among all members
-  if (Math.abs(netDifference) > 0.001 && memberIds.length > 0) {
-    const differenceShare = netDifference / memberIds.length;
-    memberIds.forEach((id) => {
-      splitsMap[id] += differenceShare;
-    });
-  }
 
   // Calculate claimed and unclaimed portions of the items list
   items.forEach((item) => {
@@ -135,29 +128,43 @@ export function calculateItemizedSplits(
       // Split item price among claimants
       const share = price / claimants.length;
       claimants.forEach((cId: string) => {
-        if (splitsMap[cId] !== undefined) {
-          splitsMap[cId] += share;
+        if (preTaxShares[cId] !== undefined) {
+          preTaxShares[cId] += share;
         }
       });
     } else {
       // Item is unclaimed. Apply unclaimed split type logic
       if (unclaimedSplitType === "payer") {
-        if (splitsMap[payerId] !== undefined) {
-          splitsMap[payerId] += price;
+        if (preTaxShares[payerId] !== undefined) {
+          preTaxShares[payerId] += price;
         }
       } else {
-        // Split equally among all group members
-        if (memberIds.length > 0) {
-          const share = price / memberIds.length;
-          memberIds.forEach((id) => {
-            if (splitsMap[id] !== undefined) {
-              splitsMap[id] += share;
+        // Split equally among target unclaimed members or fall back to all members
+        const targetShareMembers = unclaimedMembers && unclaimedMembers.length > 0 ? unclaimedMembers : memberIds;
+        if (targetShareMembers.length > 0) {
+          const share = price / targetShareMembers.length;
+          targetShareMembers.forEach((id) => {
+            if (preTaxShares[id] !== undefined) {
+              preTaxShares[id] += share;
             }
           });
         }
       }
     }
   });
+
+  // Distribute totalAmount proportionally based on pre-tax claims
+  if (totalItemsSum > 0.001) {
+    memberIds.forEach((id) => {
+      splitsMap[id] = (preTaxShares[id] / totalItemsSum) * totalAmount;
+    });
+  } else {
+    // Fallback: if no items, split totalAmount equally
+    const share = totalAmount / memberIds.length;
+    memberIds.forEach((id) => {
+      splitsMap[id] = share;
+    });
+  }
 
   // Round and adjust for float precision/rounding errors against the payer
   const result = Object.keys(splitsMap).map((memberId) => ({

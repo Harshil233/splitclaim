@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import styles from "@/styles/Expense.module.css";
 import groupStyles from "@/styles/Group.module.css";
-import { ArrowLeft, Save, Calculator, AlertTriangle, FileText, Check } from "lucide-react";
+import { ArrowLeft, Save, Calculator, AlertTriangle, FileText, Check, X } from "lucide-react";
 import Link from "next/link";
 import BillScanner from "@/components/BillScanner";
 import { formatCurrency } from "@/lib/utils";
@@ -48,7 +48,8 @@ export default function AddExpensePage({ params }: { params: Promise<{ id: strin
   
   // Itemized split state
   const [scannedItems, setScannedItems] = useState<Array<{ id: string; name: string; price: number }>>([]);
-  const [unclaimedSplitType, setUnclaimedSplitType] = useState<"equal" | "payer">("payer");
+  const [unclaimedSplitType, setUnclaimedSplitType] = useState<"equal" | "payer">("equal");
+  const [unclaimedMembers, setUnclaimedMembers] = useState<string[]>([]);
 
   const [error, setError] = useState("");
   const [loadingSubmit, setLoadingSubmit] = useState(false);
@@ -84,6 +85,7 @@ export default function AddExpensePage({ params }: { params: Promise<{ id: strin
         initialChecked[m.id] = true;
       });
       setEqualChecked(initialChecked);
+      setUnclaimedMembers(data.group.members.map((m: any) => m.id));
     } catch (err) {
       setError("An unexpected error occurred.");
     } finally {
@@ -120,6 +122,14 @@ export default function AddExpensePage({ params }: { params: Promise<{ id: strin
       ...percentageRates,
       [memberId]: parseFloat(val) || 0,
     });
+  };
+
+  const handleUnclaimedMemberToggle = (memberId: string) => {
+    if (unclaimedMembers.includes(memberId)) {
+      setUnclaimedMembers(unclaimedMembers.filter((id) => id !== memberId));
+    } else {
+      setUnclaimedMembers([...unclaimedMembers, memberId]);
+    }
   };
 
   const handleItemsScanned = (items: Array<{ id: string; name: string; price: number }>, grandTotal?: number) => {
@@ -244,6 +254,7 @@ export default function AddExpensePage({ params }: { params: Promise<{ id: strin
           splits: finalSplits,
           items: splitType === "itemized" ? scannedItems : undefined,
           unclaimedSplitType: splitType === "itemized" ? unclaimedSplitType : undefined,
+          unclaimedMembers: splitType === "itemized" ? unclaimedMembers : undefined,
         }),
       });
 
@@ -282,6 +293,21 @@ export default function AddExpensePage({ params }: { params: Promise<{ id: strin
     );
   }
 
+  const isOneOnOne = group && group.members.length === 2;
+  let friendMemberName = "";
+  if (isOneOnOne && group) {
+    const currentUserEmail = session?.user?.email?.toLowerCase();
+    const currentUserId = (session?.user as any)?.id;
+    const matchingMember = group.members.find(
+      (m) => m.id === currentUserId || (m.email && m.email === currentUserEmail)
+    );
+    const activeUserId = matchingMember?.id || currentUserId;
+    const friendMember = group.members.find((m) => m.id !== activeUserId);
+    if (friendMember) {
+      friendMemberName = friendMember.name;
+    }
+  }
+
   const unequalTotal = Object.values(unequalAmounts).reduce((sum, a) => sum + a, 0);
   const unequalDiff = amount - unequalTotal;
   const percentageTotal = Object.values(percentageRates).reduce((sum, a) => sum + a, 0);
@@ -297,9 +323,15 @@ export default function AddExpensePage({ params }: { params: Promise<{ id: strin
         <div style={{ width: "80px" }}></div>
       </div>
 
-      <p style={{ fontSize: "14px", color: "var(--text-secondary)", marginTop: "-10px", textAlign: "center" }}>
-        Adding an expense to **{group?.name}**
-      </p>
+      {isOneOnOne ? (
+        <p style={{ fontSize: "14px", color: "var(--text-secondary)", marginTop: "-10px", textAlign: "center" }}>
+          Adding an expense with **{friendMemberName}**
+        </p>
+      ) : (
+        <p style={{ fontSize: "14px", color: "var(--text-secondary)", marginTop: "-10px", textAlign: "center" }}>
+          Adding an expense to **{group?.name}**
+        </p>
+      )}
 
       {error && (
         <div className="btn btn-danger animate-fade-in" style={{ cursor: "default", fontSize: "14px", padding: "10px" }}>
@@ -328,7 +360,7 @@ export default function AddExpensePage({ params }: { params: Promise<{ id: strin
               <input
                 id="expAmt"
                 type="number"
-                step="0.01"
+                step="any"
                 min="0.01"
                 className="input-field"
                 value={amount || ""}
@@ -443,7 +475,7 @@ export default function AddExpensePage({ params }: { params: Promise<{ id: strin
                     <span className={styles.memberName}>{m.name}</span>
                     <input
                       type="number"
-                      step="0.01"
+                      step="any"
                       placeholder="0.00"
                       className={styles.splitInput}
                       value={unequalAmounts[m.id] || ""}
@@ -515,9 +547,28 @@ export default function AddExpensePage({ params }: { params: Promise<{ id: strin
                     style={{ backgroundColor: "rgba(0,0,0,0.2)" }}
                   >
                     <option value="payer">Assign 100% to Payee</option>
-                    <option value="equal">Split Equally among all</option>
+                    <option value="equal">Split Equally among select members</option>
                   </select>
                 </div>
+
+                {unclaimedSplitType === "equal" && (
+                  <div style={{ marginBottom: "16px", padding: "12px", background: "rgba(255,255,255,0.02)", border: "1px solid var(--card-border)", borderRadius: "8px" }}>
+                    <span style={{ fontSize: "12px", color: "var(--text-secondary)", display: "block", marginBottom: "8px", fontWeight: 600 }}>
+                      Who shares remaining/unclaimed items?
+                    </span>
+                    {group.members.map((m: any) => (
+                      <div key={m.id} className={styles.memberInputRow} style={{ padding: "4px 0", borderBottom: "none" }}>
+                        <span className={styles.memberName} style={{ fontSize: "13px" }}>{m.name}</span>
+                        <input
+                          type="checkbox"
+                          className={styles.checkbox}
+                          checked={unclaimedMembers.includes(m.id)}
+                          onChange={() => handleUnclaimedMemberToggle(m.id)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 <BillScanner
                   currency={group.currency}
@@ -525,11 +576,95 @@ export default function AddExpensePage({ params }: { params: Promise<{ id: strin
                 />
 
                 {scannedItems.length > 0 && (
-                  <div className={styles.summaryIndicator} style={{ background: "rgba(16, 185, 129, 0.08)", padding: "12px", borderRadius: "8px", border: "1px solid rgba(16, 185, 129, 0.2)" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <FileText size={18} className="text-success" />
-                      <span>{scannedItems.length} items scanned successfully!</span>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "16px" }}>
+                    <div className={styles.summaryIndicator} style={{ background: "rgba(16, 185, 129, 0.08)", padding: "10px 12px", borderRadius: "8px", border: "1px solid rgba(16, 185, 129, 0.2)", marginBottom: "8px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px" }}>
+                        <FileText size={16} className="text-success" />
+                        <span>{scannedItems.length} items logged. You can edit them manually below.</span>
+                      </div>
                     </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "250px", overflowY: "auto", paddingRight: "4px" }}>
+                      {scannedItems.map((item, idx) => (
+                        <div 
+                          key={item.id || idx} 
+                          style={{ 
+                            display: "flex", 
+                            gap: "8px", 
+                            alignItems: "center", 
+                            background: "rgba(255,255,255,0.02)", 
+                            padding: "6px 8px", 
+                            borderRadius: "8px", 
+                            border: "1px solid var(--card-border)" 
+                          }}
+                        >
+                          <input
+                            type="text"
+                            className="input-field"
+                            style={{ flex: 2, padding: "8px", fontSize: "14px", height: "36px" }}
+                            value={item.name}
+                            onChange={(e) => {
+                              const newItems = [...scannedItems];
+                              newItems[idx] = { ...newItems[idx], name: e.target.value };
+                              setScannedItems(newItems);
+                            }}
+                            placeholder="Item name"
+                            required
+                          />
+                          <input
+                            type="number"
+                            step="any"
+                            min="0"
+                            className="input-field"
+                            style={{ flex: 1, padding: "8px", fontSize: "14px", maxWidth: "90px", height: "36px" }}
+                            value={item.price || ""}
+                            onChange={(e) => {
+                              const newItems = [...scannedItems];
+                              newItems[idx] = { ...newItems[idx], price: parseFloat(e.target.value) || 0 };
+                              setScannedItems(newItems);
+                              // Update total amount automatically
+                              const sum = newItems.reduce((acc, curr) => acc + (curr.price || 0), 0);
+                              setAmount(parseFloat(sum.toFixed(2)));
+                            }}
+                            placeholder="Price"
+                            required
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const item = scannedItems[idx];
+                              if (!window.confirm(`Are you sure you want to delete "${item?.name || "this item"}"?`)) return;
+                              const newItems = scannedItems.filter((_, i) => i !== idx);
+                              setScannedItems(newItems);
+                              const sum = newItems.reduce((acc, curr) => acc + (curr.price || 0), 0);
+                              setAmount(parseFloat(sum.toFixed(2)));
+                            }}
+                            className="btn btn-danger"
+                            style={{ width: "32px", height: "32px", padding: 0, borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                            title="Delete Item"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newItem = {
+                          id: Math.random().toString(36).substring(2, 9),
+                          name: "",
+                          price: 0,
+                          claimedBy: []
+                        };
+                        setScannedItems([...scannedItems, newItem]);
+                      }}
+                      className="btn btn-secondary"
+                      style={{ padding: "6px 12px", fontSize: "12px", width: "auto", alignSelf: "flex-start", height: "32px" }}
+                    >
+                      + Add Item Manually
+                    </button>
                   </div>
                 )}
               </div>

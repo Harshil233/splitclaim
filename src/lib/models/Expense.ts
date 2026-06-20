@@ -65,7 +65,7 @@ const ExpenseSchema = new Schema(
     unclaimedSplitType: {
       type: String,
       enum: ['equal', 'payer'],
-      default: 'payer',
+      default: 'equal',
     },
     claimToken: {
       type: String,
@@ -73,6 +73,10 @@ const ExpenseSchema = new Schema(
       sparse: true,
     },
     submittedMembers: {
+      type: [String],
+      default: [],
+    },
+    unclaimedMembers: {
       type: [String],
       default: [],
     },

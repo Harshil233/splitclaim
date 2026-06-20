@@ -1,19 +1,19 @@
 const mongoose = require('mongoose');
 
-const MONGODB_URI = 'mongodb://localhost:27017/splitclaim';
+const MONGODB_URI = 'mongodb+srv://harshilrathod233_db_user:daaVhkCZKLyCe9pq@splitclaim-cluster.dffenr8.mongodb.net/splitclaim?retryWrites=true&w=majority&appName=splitclaim-cluster';
 
 mongoose.connect(MONGODB_URI).then(async () => {
-  console.log("Connected to MongoDB!");
+  console.log("Connected to MongoDB Atlas!");
   
   const Group = mongoose.model('Group', new mongoose.Schema({}, { strict: false }));
   const Expense = mongoose.model('Expense', new mongoose.Schema({}, { strict: false }));
   
-  const groups = await Group.find({});
-  console.log("--- GROUPS ---");
-  console.log(JSON.stringify(groups, null, 2));
+  const group = await Group.findOne({ name: "checking" });
+  console.log("--- GROUP checking ---");
+  console.log(JSON.stringify(group, null, 2));
   
-  const expenses = await Expense.find({});
-  console.log("--- EXPENSES ---");
+  const expenses = await Expense.find({ groupId: group._id });
+  console.log("--- EXPENSES for checking ---");
   console.log(JSON.stringify(expenses, null, 2));
   
   process.exit(0);

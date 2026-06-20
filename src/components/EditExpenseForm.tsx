@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import styles from "@/styles/Expense.module.css";
-import { X, Check, Calculator, AlertTriangle, FileText } from "lucide-react";
+import { X, Save, Calculator, AlertTriangle, FileText, Check } from "lucide-react";
 import BillScanner from "./BillScanner";
 import { formatCurrency } from "@/lib/utils";
 
@@ -21,19 +21,44 @@ interface Group {
   members: GroupMember[];
 }
 
-interface ExpenseFormProps {
+interface ExpenseSplit {
+  memberId: string;
+  amount: number;
+}
+
+interface ExpenseItem {
+  id: string;
+  name: string;
+  price: number;
+  claimedBy: string[];
+}
+
+interface Expense {
+  _id: string;
+  description: string;
+  amount: number;
+  payerId: string;
+  splitType: "equal" | "unequal" | "percentage" | "itemized";
+  splits: ExpenseSplit[];
+  items?: ExpenseItem[];
+  unclaimedSplitType?: "equal" | "payer";
+  unclaimedMembers?: string[];
+}
+
+interface EditExpenseFormProps {
   group: Group;
+  expense: Expense;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-export default function ExpenseForm({ group, onClose, onSuccess }: ExpenseFormProps) {
+export default function EditExpenseForm({ group, expense, onClose, onSuccess }: EditExpenseFormProps) {
   const { data: session } = useSession();
   
-  const [description, setDescription] = useState("");
-  const [amount, setAmount] = useState<number>(0);
-  const [payerId, setPayerId] = useState("");
-  const [splitType, setSplitType] = useState<"equal" | "unequal" | "percentage" | "itemized">("itemized");
+  const [description, setDescription] = useState(expense.description);
+  const [amount, setAmount] = useState<number>(expense.amount);
+  const [payerId, setPayerId] = useState(expense.payerId);
+  const [splitType, setSplitType] = useState<"equal" | "unequal" | "percentage" | "itemized">(expense.splitType);
   
   // Equal Split state
   const [equalChecked, setEqualChecked] = useState<{ [memberId: string]: boolean }>({});
@@ -45,37 +70,55 @@ export default function ExpenseForm({ group, onClose, onSuccess }: ExpenseFormPr
   const [percentageRates, setPercentageRates] = useState<{ [memberId: string]: number }>({});
   
   // Itemized split state
-  const [scannedItems, setScannedItems] = useState<Array<{ id: string; name: string; price: number }>>([]);
-  const [unclaimedSplitType, setUnclaimedSplitType] = useState<"equal" | "payer">("equal");
-  const [unclaimedMembers, setUnclaimedMembers] = useState<string[]>([]);
+  const [scannedItems, setScannedItems] = useState<Array<{ id: string; name: string; price: number; claimedBy?: string[] }>>([]);
+  const [unclaimedSplitType, setUnclaimedSplitType] = useState<"equal" | "payer">(expense.unclaimedSplitType || "equal");
+  const [unclaimedMembers, setUnclaimedMembers] = useState<string[]>(expense.unclaimedMembers || []);
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Initialize defaults
+  // Initialize form with existing values
   useEffect(() => {
-    // Default payer is the current user
-    const currentUserId = (session?.user as any)?.id;
-    const currentUserEmail = session?.user?.email?.toLowerCase();
-    
-    const matchingMember = group.members.find(
-      (m) => m.id === currentUserId || (m.email && m.email === currentUserEmail)
-    );
-    
-    if (matchingMember) {
-      setPayerId(matchingMember.id);
-    } else if (group.members.length > 0) {
-      setPayerId(group.members[0].id);
+    // Equal split checked mapping
+    const eqChecked: { [memberId: string]: boolean } = {};
+    // Prefill unequal amounts
+    const uneqAmts: { [memberId: string]: number } = {};
+    // Prefill percentage rates
+    const pctRates: { [memberId: string]: number } = {};
+
+    group.members.forEach((m) => {
+      eqChecked[m.id] = false;
+      uneqAmts[m.id] = 0;
+      pctRates[m.id] = 0;
+    });
+
+    if (expense.splitType === "equal") {
+      expense.splits.forEach((s) => {
+        if (s.amount > 0.01) {
+          eqChecked[s.memberId] = true;
+        }
+      });
+    } else if (expense.splitType === "unequal") {
+      expense.splits.forEach((s) => {
+        uneqAmts[s.memberId] = s.amount;
+      });
+    } else if (expense.splitType === "percentage") {
+      expense.splits.forEach((s) => {
+        pctRates[s.memberId] = parseFloat(((s.amount / expense.amount) * 100).toFixed(1));
+      });
+    } else if (expense.splitType === "itemized" && expense.items) {
+      setScannedItems(expense.items);
     }
 
-    // Default checked for equal split is all members
-    const initialChecked: { [memberId: string]: boolean } = {};
-    group.members.forEach((m) => {
-      initialChecked[m.id] = true;
-    });
-    setEqualChecked(initialChecked);
-    setUnclaimedMembers(group.members.map((m) => m.id));
-  }, [group, session]);
+    setEqualChecked(eqChecked);
+    setUnequalAmounts(uneqAmts);
+    setPercentageRates(pctRates);
+    setUnclaimedMembers(
+      expense.unclaimedMembers && expense.unclaimedMembers.length > 0
+        ? expense.unclaimedMembers
+        : group.members.map((m) => m.id)
+    );
+  }, [expense, group]);
 
   const handleEqualCheckboxChange = (memberId: string) => {
     setEqualChecked({
@@ -106,7 +149,7 @@ export default function ExpenseForm({ group, onClose, onSuccess }: ExpenseFormPr
     }
   };
 
-  const handleItemsScanned = (items: Array<{ id: string; name: string; price: number }>, grandTotal?: number) => {
+  const handleItemsScanned = (items: Array<{ id: string; name: string; price: number; claimedBy?: string[] }>, grandTotal?: number) => {
     setScannedItems(items);
     if (grandTotal && grandTotal > 0) {
       setAmount(grandTotal);
@@ -146,11 +189,10 @@ export default function ExpenseForm({ group, onClose, onSuccess }: ExpenseFormPr
         });
       });
 
-      // Adjust any rounding discrepancy
+      // Adjust rounding discrepancy
       const totalSplit = finalSplits.reduce((sum, item) => sum + item.amount, 0);
       const diff = amount - totalSplit;
       if (Math.abs(diff) > 0.01 && checkedMembers.length > 0) {
-        // adjust first checked member's share
         const index = finalSplits.findIndex((s) => s.amount > 0);
         if (index !== -1) {
           finalSplits[index].amount = parseFloat((finalSplits[index].amount + diff).toFixed(2));
@@ -198,14 +240,6 @@ export default function ExpenseForm({ group, onClose, onSuccess }: ExpenseFormPr
       if (Math.abs(diff) > 0.01 && finalSplits.length > 0) {
         finalSplits[0].amount = parseFloat((finalSplits[0].amount + diff).toFixed(2));
       }
-
-    } else if (splitType === "itemized") {
-      if (scannedItems.length === 0) {
-        setError("Please scan or add at least one item for itemized claims.");
-        return { isValid: false, finalSplits: [] };
-      }
-      // splits will be calculated on backend or dynamically updated.
-      // we can return empty or computed splits for validation
     }
 
     return { isValid: true, finalSplits };
@@ -219,13 +253,12 @@ export default function ExpenseForm({ group, onClose, onSuccess }: ExpenseFormPr
     setLoading(true);
 
     try {
-      const res = await fetch("/api/expenses", {
-        method: "POST",
+      const res = await fetch(`/api/expenses/${expense._id}`, {
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          groupId: group._id,
           description: description.trim(),
           amount,
           payerId,
@@ -240,7 +273,7 @@ export default function ExpenseForm({ group, onClose, onSuccess }: ExpenseFormPr
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.message || "Failed to log expense.");
+        setError(data.message || "Failed to save changes.");
       } else {
         onSuccess();
       }
@@ -251,18 +284,15 @@ export default function ExpenseForm({ group, onClose, onSuccess }: ExpenseFormPr
     }
   };
 
-  // Unequal split total helper
   const unequalTotal = Object.values(unequalAmounts).reduce((sum, a) => sum + a, 0);
   const unequalDiff = amount - unequalTotal;
-
-  // Percentage split total helper
   const percentageTotal = Object.values(percentageRates).reduce((sum, a) => sum + a, 0);
 
   return (
     <div className={styles.overlay}>
       <div className={styles.drawer}>
         <div className={styles.header}>
-          <h2 className={styles.title}>Add Expense</h2>
+          <h2 className={styles.title}>Edit Expense</h2>
           <button onClick={onClose} className={styles.closeBtn} type="button">
             <X size={20} />
           </button>
@@ -282,7 +312,6 @@ export default function ExpenseForm({ group, onClose, onSuccess }: ExpenseFormPr
               <input
                 id="expDesc"
                 type="text"
-                placeholder="e.g. Dinner, Cab, Groceries"
                 className="input-field"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -305,14 +334,14 @@ export default function ExpenseForm({ group, onClose, onSuccess }: ExpenseFormPr
               {splitType === "itemized" && (
                 <span style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "4px", display: "block" }}>
                   {(() => {
-                    const itemsSum = scannedItems.reduce((acc, curr) => acc + curr.price, 0);
+                    const itemsSum = scannedItems.reduce((acc, curr) => acc + (curr.price || 0), 0);
                     const diff = amount - itemsSum;
                     if (Math.abs(diff) < 0.01) {
                       return "✓ Total amount matches the sum of items.";
                     } else if (diff > 0) {
-                      return `+ ${formatCurrency(diff, group.currency)} additional fees (delivery, handling, taxes) split equally by default.`;
+                      return `+ ${formatCurrency(diff, group.currency)} additional fees split equally by default.`;
                     } else {
-                      return `- ${formatCurrency(Math.abs(diff), group.currency)} discount will be subtracted/distributed by default.`;
+                      return `- ${formatCurrency(Math.abs(diff), group.currency)} discount will be subtracted equally by default.`;
                     }
                   })()}
                 </span>
@@ -337,7 +366,6 @@ export default function ExpenseForm({ group, onClose, onSuccess }: ExpenseFormPr
               </select>
             </div>
 
-            {/* Split Type Tabs */}
             <div className="input-group">
               <label>Split Model</label>
               <div className={styles.tabSelector}>
@@ -372,7 +400,6 @@ export default function ExpenseForm({ group, onClose, onSuccess }: ExpenseFormPr
               </div>
             </div>
 
-            {/* Splitting Details Render */}
             <div className={styles.splitSection}>
               {splitType === "equal" && (
                 <div>
@@ -391,7 +418,6 @@ export default function ExpenseForm({ group, onClose, onSuccess }: ExpenseFormPr
                     </div>
                   ))}
                   
-                  {/* Share indicator */}
                   <div className={styles.summaryIndicator}>
                     <span>Individual Share:</span>
                     <span className={styles.statusSuccess}>
@@ -512,11 +538,95 @@ export default function ExpenseForm({ group, onClose, onSuccess }: ExpenseFormPr
                   />
 
                   {scannedItems.length > 0 && (
-                    <div className={styles.summaryIndicator} style={{ background: "rgba(16, 185, 129, 0.08)", padding: "12px", borderRadius: "8px", border: "1px solid rgba(16, 185, 129, 0.2)" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <FileText size={18} className="text-success" />
-                        <span>{scannedItems.length} items scanned successfully!</span>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "16px" }}>
+                      <div className={styles.summaryIndicator} style={{ background: "rgba(16, 185, 129, 0.08)", padding: "10px 12px", borderRadius: "8px", border: "1px solid rgba(16, 185, 129, 0.2)", marginBottom: "8px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px" }}>
+                          <FileText size={16} className="text-success" />
+                          <span>{scannedItems.length} items logged. You can edit them manually below.</span>
+                        </div>
                       </div>
+
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "250px", overflowY: "auto", paddingRight: "4px" }}>
+                        {scannedItems.map((item, idx) => (
+                          <div 
+                            key={item.id || idx} 
+                            style={{ 
+                              display: "flex", 
+                              gap: "8px", 
+                              alignItems: "center", 
+                              background: "rgba(255,255,255,0.02)", 
+                              padding: "6px 8px", 
+                              borderRadius: "8px", 
+                              border: "1px solid var(--card-border)" 
+                            }}
+                          >
+                            <input
+                              type="text"
+                              className="input-field"
+                              style={{ flex: 2, padding: "8px", fontSize: "14px", height: "36px" }}
+                              value={item.name}
+                              onChange={(e) => {
+                                const newItems = [...scannedItems];
+                                newItems[idx] = { ...newItems[idx], name: e.target.value };
+                                setScannedItems(newItems);
+                              }}
+                              placeholder="Item name"
+                              required
+                            />
+                            <input
+                              type="number"
+                              step="any"
+                              min="0"
+                              className="input-field"
+                              style={{ flex: 1, padding: "8px", fontSize: "14px", maxWidth: "90px", height: "36px" }}
+                              value={item.price || ""}
+                              onChange={(e) => {
+                                const newItems = [...scannedItems];
+                                newItems[idx] = { ...newItems[idx], price: parseFloat(e.target.value) || 0 };
+                                setScannedItems(newItems);
+                                // Update total amount automatically
+                                const sum = newItems.reduce((acc, curr) => acc + (curr.price || 0), 0);
+                                setAmount(parseFloat(sum.toFixed(2)));
+                              }}
+                              placeholder="Price"
+                              required
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const item = scannedItems[idx];
+                                if (!window.confirm(`Are you sure you want to delete "${item?.name || "this item"}"?`)) return;
+                                const newItems = scannedItems.filter((_, i) => i !== idx);
+                                setScannedItems(newItems);
+                                const sum = newItems.reduce((acc, curr) => acc + (curr.price || 0), 0);
+                                setAmount(parseFloat(sum.toFixed(2)));
+                              }}
+                              className="btn btn-danger"
+                              style={{ width: "32px", height: "32px", padding: 0, borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                              title="Delete Item"
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newItem = {
+                            id: Math.random().toString(36).substring(2, 9),
+                            name: "",
+                            price: 0,
+                            claimedBy: []
+                          };
+                          setScannedItems([...scannedItems, newItem]);
+                        }}
+                        className="btn btn-secondary"
+                        style={{ padding: "6px 12px", fontSize: "12px", width: "auto", alignSelf: "flex-start", height: "32px" }}
+                      >
+                        + Add Item Manually
+                      </button>
                     </div>
                   )}
                 </div>
@@ -543,7 +653,10 @@ export default function ExpenseForm({ group, onClose, onSuccess }: ExpenseFormPr
                     Saving...
                   </>
                 ) : (
-                  "Log Expense"
+                  <>
+                    <Save size={18} />
+                    Save Changes
+                  </>
                 )}
               </button>
             </div>
