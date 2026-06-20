@@ -58,6 +58,28 @@ export const authOptions: AuthOptions = {
     strategy: "jwt",
   },
   callbacks: {
+    async signIn({ user, account }) {
+      if (account?.provider === "google") {
+        await dbConnect();
+        const email = user.email?.toLowerCase();
+        let dbUser = await User.findOne({ email });
+        
+        if (!dbUser) {
+          // Generate a dummy password to satisfy Mongoose validation requirements
+          const dummyPassword = Math.random().toString(36).slice(-10);
+          const hashedPassword = await bcrypt.hash(dummyPassword, 12);
+          dbUser = await User.create({
+            name: user.name || "Google User",
+            email,
+            password: hashedPassword,
+            isVerified: true,
+          });
+        }
+        // Override user.id with the MongoDB ObjectId string
+        user.id = dbUser._id.toString();
+      }
+      return true;
+    },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
