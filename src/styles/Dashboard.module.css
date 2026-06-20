@@ -1,0 +1,177 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: fadeIn 0.4s ease forwards;
+  width: 100%;
+}
+
+.welcomeHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.greeting {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.username {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.summaryCard {
+  composes: glass-card from global;
+  background: linear-gradient(135deg, rgba(20, 20, 35, 0.7) 0%, rgba(99, 102, 241, 0.1) 100%);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  padding: 24px;
+  text-align: center;
+  border-color: rgba(99, 102, 241, 0.2);
+}
+
+.summaryItem {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.summaryItem:first-child {
+  border-right: 1px solid var(--card-border);
+  padding-right: 16px;
+}
+
+.summaryLabel {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.summaryValue {
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.valueOwed {
+  color: #34d399; /* Green accent */
+}
+
+.valueOwe {
+  color: #f87171; /* Red danger */
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.sectionTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.createBtn {
+  font-size: 13px;
+  padding: 6px 12px;
+  width: auto;
+  border-radius: 20px;
+}
+
+.groupsList {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 600px) {
+  .groupsList {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 900px) {
+  .groupsList {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.groupCard {
+  composes: glass-card from global;
+  padding: 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  transition: transform var(--transition-fast), background-color var(--transition-fast);
+}
+
+.groupCard:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.groupMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.groupName {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.groupMembers {
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.groupBalance {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.balanceText {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.balanceAmt {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.amtOwed {
+  color: #34d399;
+}
+
+.amtOwe {
+  color: #f87171;
+}
+
+.amtSettled {
+  color: var(--text-muted);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}

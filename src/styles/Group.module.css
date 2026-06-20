@@ -1,0 +1,367 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: fadeIn 0.4s ease forwards;
+  width: 100%;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.sectionTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card {
+  composes: glass-card from global;
+}
+
+.membersList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.memberRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--card-border);
+  padding: 12px;
+  border-radius: var(--border-radius-sm);
+}
+
+.memberInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.memberName {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.memberEmail {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 20px;
+  text-transform: uppercase;
+}
+
+.badgeGuest {
+  background: rgba(168, 85, 247, 0.15);
+  color: #d8b4fe;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+.badgeUser {
+  background: rgba(99, 102, 241, 0.15);
+  color: #c7d2fe;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.deleteBtn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.deleteBtn:hover {
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.addMemberForm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed var(--card-border);
+  border-radius: var(--border-radius-md);
+  margin-top: 8px;
+}
+
+.addMemberInputs {
+  display: flex;
+  gap: 8px;
+}
+
+@media (max-width: 480px) {
+  .addMemberInputs {
+    flex-direction: column;
+  }
+}
+
+.addMemberInputs input {
+  flex: 1;
+}
+
+/* Group detail balances */
+.balanceGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.balanceBox {
+  padding: 16px;
+  border-radius: var(--border-radius-md);
+  text-align: center;
+  border: 1px solid var(--card-border);
+}
+
+.balanceOwed {
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.15);
+}
+
+.balanceOwe {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.15);
+}
+
+.balanceLabel {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.balanceOwed .balanceLabel {
+  color: var(--accent);
+}
+
+.balanceOwe .balanceLabel {
+  color: var(--danger);
+}
+
+.balanceVal {
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.balanceOwed .balanceVal {
+  color: #34d399;
+}
+
+.balanceOwe .balanceVal {
+  color: #f87171;
+}
+
+/* Debts checklist */
+.debtRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.debtRow:last-child {
+  border-bottom: none;
+}
+
+.debtInfo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.debtText {
+  font-size: 14px;
+}
+
+.debtText strong {
+  color: var(--text-primary);
+}
+
+.settleBtn {
+  padding: 6px 12px;
+  font-size: 13px;
+  border-radius: 20px;
+  width: auto;
+}
+
+/* Expenses List */
+.expenseList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.expenseCard {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--card-border);
+  border-radius: var(--border-radius-md);
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: background-color var(--transition-fast);
+  cursor: pointer;
+}
+
+.expenseCard:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.expenseMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.expenseDesc {
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--text-primary);
+}
+
+.expenseSub {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.expenseAmountCol {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.expenseAmt {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text-primary);
+}
+
+.expenseSplitType {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 2px 6px;
+  border-radius: 10px;
+  display: inline-block;
+}
+
+.shareBtn {
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.shareBtn:hover {
+  background: rgba(99, 102, 241, 0.2);
+}
+
+.settlementPill {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  color: #6ee7b7;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.floatingAddBtn {
+  position: fixed;
+  bottom: 84px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.5);
+  border: none;
+  cursor: pointer;
+  z-index: 10;
+  transition: transform var(--transition-fast);
+}
+
+.floatingAddBtn:active {
+  transform: scale(0.9);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.detailLayout {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .detailLayout {
+    display: grid;
+    grid-template-columns: 1fr 1.3fr;
+    gap: 24px;
+    align-items: start;
+  }
+}
+
+.leftColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.rightColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}

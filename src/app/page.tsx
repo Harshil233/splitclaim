@@ -1,66 +1,84 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+"use client";
 
-export default function Home() {
+import { useSession } from "next-auth/react";
+import Link from "next/link";
+import styles from "@/styles/Home.module.css";
+import { Sparkles, ScanLine, Users, Share2, ArrowRight } from "lucide-react";
+
+export default function HomePage() {
+  const { data: session } = useSession();
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.tsx file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className={styles.hero}>
+      <div className={styles.hero}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: "rgba(99, 102, 241, 0.15)", border: "1px solid rgba(99, 102, 241, 0.3)", padding: "6px 12px", borderRadius: "20px", fontSize: "12px", color: "#a5b4fc", fontWeight: 600 }}>
+          <Sparkles size={12} /> Mobile-Optimized Bill Splitting
         </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <h1 className={styles.title}>Split Bills.<br />Claim Your Share.</h1>
+        <p className={styles.subtitle}>
+          The easiest way to split group expenses. Upload bill screenshots, extract items with client-side OCR, and share links for friends to claim what they consumed.
+        </p>
+
+        <div className={styles.ctaGroup}>
+          {session ? (
+            <Link href="/dashboard" className="btn btn-primary">
+              Go to Dashboard
+              <ArrowRight size={16} />
+            </Link>
+          ) : (
+            <>
+              <Link href="/register" className="btn btn-primary">
+                Get Started for Free
+              </Link>
+              <Link href="/login" className="btn btn-secondary">
+                Sign In
+              </Link>
+            </>
+          )}
         </div>
-      </main>
+      </div>
+
+      <div className={styles.featuresGrid}>
+        <div className={styles.featureCard}>
+          <div className={styles.featureIcon}>
+            <ScanLine size={20} />
+          </div>
+          <div className={styles.featureMeta}>
+            <h3 className={styles.featureTitle}>OCR Item Extraction</h3>
+            <p className={styles.featureDesc}>
+              Upload receipt screenshots. Tesseract.js processes them locally on your device to extract items and prices instantly with zero server cost.
+            </p>
+          </div>
+        </div>
+
+        <div className={styles.featureCard}>
+          <div className={styles.featureIcon}>
+            <Share2 size={20} />
+          </div>
+          <div className={styles.featureMeta}>
+            <h3 className={styles.featureTitle}>Shareable Claim Links</h3>
+            <p className={styles.featureDesc}>
+              Generate a public claim link. Friends select their name and check off their items—no login or sign-up required for guests.
+            </p>
+          </div>
+        </div>
+
+        <div className={styles.featureCard}>
+          <div className={styles.featureIcon}>
+            <Users size={20} />
+          </div>
+          <div className={styles.featureMeta}>
+            <h3 className={styles.featureTitle}>Flexible Splitting</h3>
+            <p className={styles.featureDesc}>
+              Support for traditional splits (equal, unequal, percentage) alongside itemized claims. Unclaimed items split equally or assign to host.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <footer className={styles.footer}>
+        <p>&copy; {new Date().getFullYear()} SplitClaim. Built with Next.js, Mongoose, and Tesseract.js.</p>
+      </footer>
     </div>
   );
 }
