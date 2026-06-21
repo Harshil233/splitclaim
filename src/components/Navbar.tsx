@@ -56,17 +56,11 @@ export default function Navbar() {
               </Link>
 
               <Link 
-                href="/activity" 
-                className={`${styles.navLink} ${isActive("/activity")}`}
-                style={{ position: "relative" }}
+                href="/friends" 
+                className={`${styles.navLink} ${isActive("/friends")}`}
               >
-                <Bell size={20} />
-                <span>Activity</span>
-                {unreadCount > 0 && (
-                  <span className={styles.badge}>
-                    {unreadCount}
-                  </span>
-                )}
+                <Users size={20} />
+                <span>Friends</span>
               </Link>
 
               <Link 
@@ -78,11 +72,17 @@ export default function Navbar() {
               </Link>
 
               <Link 
-                href="/friends" 
-                className={`${styles.navLink} ${isActive("/friends")}`}
+                href="/activity" 
+                className={`${styles.navLink} ${isActive("/activity")}`}
+                style={{ position: "relative" }}
               >
-                <Users size={20} />
-                <span>Friends</span>
+                <Bell size={20} />
+                <span>Activity</span>
+                {unreadCount > 0 && (
+                  <span className={styles.badge}>
+                    {unreadCount}
+                  </span>
+                )}
               </Link>
 
               <Link 

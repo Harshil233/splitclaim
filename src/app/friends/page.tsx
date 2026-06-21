@@ -171,22 +171,24 @@ export default function FriendsPage() {
   return (
     <div className={styles.container}>
       {/* Back button and title */}
-      <div className={styles.welcomeHeader}>
-        <div>
-          <Link href="/dashboard" className="btn btn-secondary" style={{ width: "auto", padding: "6px 12px", display: "inline-flex", gap: "6px", alignItems: "center", textDecoration: "none", marginBottom: "12px", fontSize: "12px" }}>
+      <div className={styles.welcomeHeader} style={{ flexDirection: "column", alignItems: "stretch", gap: "12px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Link href="/dashboard" className="btn btn-secondary" style={{ width: "auto", padding: "6px 12px", display: "inline-flex", gap: "6px", alignItems: "center", textDecoration: "none", fontSize: "12px" }}>
             <ArrowLeft size={14} /> Back to Dashboard
           </Link>
+          <button
+            onClick={fetchFriends}
+            className="btn btn-secondary"
+            style={{ width: "auto", padding: "8px 12px", display: "flex", alignItems: "center", justifyContent: "center" }}
+            title="Refresh Friends"
+          >
+            <RefreshCw size={16} />
+          </button>
+        </div>
+        <div>
           <h1 className={styles.title}>Friend Balances</h1>
           <span className={styles.subtitle}>Combined net balances with friends across all groups</span>
         </div>
-        <button
-          onClick={fetchFriends}
-          className="btn btn-secondary"
-          style={{ width: "auto", padding: "8px 12px" }}
-          title="Refresh Friends"
-        >
-          <RefreshCw size={16} />
-        </button>
       </div>
 
       {/* Net Summary Cards */}

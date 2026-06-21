@@ -73,7 +73,7 @@ export default function DashboardPage() {
   return (
     <div className={styles.container}>
       {/* Dashboard Title Header */}
-      <div className={styles.welcomeHeader} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div className={styles.welcomeHeader} style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
         <div>
           <h1 className={styles.username} style={{ fontSize: "26px" }}>Dashboard</h1>
         </div>
