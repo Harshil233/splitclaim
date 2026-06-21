@@ -1,16 +1,14 @@
 "use client";
 
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
 import styles from "@/styles/Navbar.module.css";
-import { Home, LayoutDashboard, Plus, LogIn, UserPlus, LogOut, Users } from "lucide-react";
+import { Home, LayoutDashboard, Plus, LogIn, UserPlus, Users, User } from "lucide-react";
 
 export default function Navbar() {
   const { data: session } = useSession();
   const pathname = usePathname();
-  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
 
   // Do not render navbar on public claim page (to give maximum screen area for claim checkbox)
   if (pathname?.startsWith("/claim/")) {
@@ -23,16 +21,6 @@ export default function Navbar() {
 
   return (
     <>
-      {session && (
-        <button 
-          onClick={() => setShowSignOutConfirm(true)}
-          className={styles.signOutFloat}
-          title="Sign Out"
-        >
-          <LogOut size={20} />
-        </button>
-      )}
-
       <nav className={styles.nav}>
         <div className={styles.navInner}>
           {session ? (
@@ -59,6 +47,14 @@ export default function Navbar() {
               >
                 <Users size={20} />
                 <span>Friends</span>
+              </Link>
+
+              <Link 
+                href="/account" 
+                className={`${styles.navLink} ${isActive("/account")}`}
+              >
+                <User size={20} />
+                <span>Account</span>
               </Link>
             </>
           ) : (
@@ -90,37 +86,6 @@ export default function Navbar() {
           )}
         </div>
       </nav>
-
-      {/* Confirmation Modal */}
-      {showSignOutConfirm && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalCard}>
-            <h3 className={styles.modalTitle}>Confirm Sign Out</h3>
-            <p className={styles.modalDescription}>
-              Are you sure you want to sign out of SplitClaim?
-            </p>
-            <div className={styles.modalActions}>
-              <button 
-                onClick={() => setShowSignOutConfirm(false)}
-                className="btn btn-secondary"
-                style={{ width: "auto" }}
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={() => {
-                  setShowSignOutConfirm(false);
-                  signOut({ callbackUrl: "/" });
-                }}
-                className="btn btn-danger"
-                style={{ width: "auto" }}
-              >
-                Sign Out
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }
