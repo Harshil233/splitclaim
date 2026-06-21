@@ -1,14 +1,36 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styles from "@/styles/Navbar.module.css";
-import { Home, LayoutDashboard, Plus, LogIn, UserPlus, Users, User } from "lucide-react";
+import { Home, LayoutDashboard, Plus, LogIn, UserPlus, Users, User, Bell } from "lucide-react";
 
 export default function Navbar() {
   const { data: session } = useSession();
   const pathname = usePathname();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchUnreadCount = async () => {
+    try {
+      const res = await fetch("/api/activities");
+      if (res.ok) {
+        const data = await res.json();
+        setUnreadCount(data.unreadCount || 0);
+      }
+    } catch (e) {
+      // silent fail
+    }
+  };
+
+  useEffect(() => {
+    if (session) {
+      fetchUnreadCount();
+      const interval = setInterval(fetchUnreadCount, 15000);
+      return () => clearInterval(interval);
+    }
+  }, [session, pathname]);
 
   // Do not render navbar on public claim page (to give maximum screen area for claim checkbox)
   if (pathname?.startsWith("/claim/")) {
@@ -31,6 +53,20 @@ export default function Navbar() {
               >
                 <LayoutDashboard size={20} />
                 <span>Dashboard</span>
+              </Link>
+
+              <Link 
+                href="/activity" 
+                className={`${styles.navLink} ${isActive("/activity")}`}
+                style={{ position: "relative" }}
+              >
+                <Bell size={20} />
+                <span>Activity</span>
+                {unreadCount > 0 && (
+                  <span className={styles.badge}>
+                    {unreadCount}
+                  </span>
+                )}
               </Link>
 
               <Link 

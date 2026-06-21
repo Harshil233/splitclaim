@@ -6,6 +6,7 @@ import Group from "@/lib/models/Group";
 import Expense from "@/lib/models/Expense";
 import crypto from "crypto";
 import { calculateItemizedSplits } from "@/lib/utils";
+import { logActivity } from "@/lib/activity";
 
 export async function POST(req: Request) {
   try {
@@ -68,6 +69,15 @@ export async function POST(req: Request) {
       unclaimedSplitType: unclaimedSplitType || "equal",
       unclaimedMembers: unclaimedMembers || [],
       claimToken,
+    });
+
+    // Log activity
+    const userEmailOrId = session.user.email || (session.user as any).id;
+    await logActivity({
+      groupId,
+      performedByUserId: userEmailOrId,
+      type: "create_expense",
+      description: `added "${description}" (₹${amount})`,
     });
 
     return NextResponse.json({ expense }, { status: 201 });

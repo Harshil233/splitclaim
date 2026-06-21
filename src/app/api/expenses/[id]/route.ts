@@ -5,6 +5,7 @@ import dbConnect from "@/lib/db";
 import Group from "@/lib/models/Group";
 import Expense from "@/lib/models/Expense";
 import { calculateItemizedSplits } from "@/lib/utils";
+import { logActivity } from "@/lib/activity";
 
 export async function PUT(
   req: Request,
@@ -80,6 +81,15 @@ export async function PUT(
     expense.unclaimedMembers = unclaimedMembers || [];
     await expense.save();
 
+    // Log activity
+    const userEmailOrId = session.user.email || (session.user as any).id;
+    await logActivity({
+      groupId: expense.groupId.toString(),
+      performedByUserId: userEmailOrId,
+      type: "update_expense",
+      description: `updated "${description.trim()}" (₹${amount})`,
+    });
+
     return NextResponse.json({ success: true, expense });
   } catch (error: any) {
     console.error("Update expense error:", error);
@@ -123,6 +133,15 @@ export async function DELETE(
     }
 
     await Expense.deleteOne({ _id: id });
+
+    // Log activity
+    const userEmailOrId = session.user.email || (session.user as any).id;
+    await logActivity({
+      groupId: expense.groupId.toString(),
+      performedByUserId: userEmailOrId,
+      type: "delete_expense",
+      description: `deleted expense "${expense.description}"`,
+    });
 
     return NextResponse.json({ success: true, message: "Expense deleted successfully" });
   } catch (error: any) {

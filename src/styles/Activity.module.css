@@ -1,0 +1,137 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  animation: fadeIn 0.4s ease forwards;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  padding-bottom: 48px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.title {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.feed {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: relative;
+}
+
+.activityCard {
+  composes: glass-card from global;
+  padding: 16px;
+  display: flex;
+  gap: 16px;
+  cursor: pointer;
+  transition: transform var(--transition-fast), background-color var(--transition-fast);
+  align-items: flex-start;
+  position: relative;
+  overflow: hidden;
+}
+
+.activityCard:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.unreadHighlight {
+  border-left: 3px solid var(--primary) !important;
+}
+
+.iconWrapper {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.iconCreate {
+  background: rgba(52, 211, 153, 0.1);
+  color: #34d399;
+}
+
+.iconUpdate {
+  background: rgba(99, 102, 241, 0.1);
+  color: #a5b4fc;
+}
+
+.iconDelete {
+  background: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+}
+
+.iconSettle {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-grow: 1;
+}
+
+.text {
+  font-size: 14px;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.text strong {
+  color: white;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  flex-wrap: wrap;
+}
+
+.groupName {
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.time {
+  opacity: 0.7;
+}
+
+.unreadDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--primary);
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  box-shadow: 0 0 8px var(--primary);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}

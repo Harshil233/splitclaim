@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import dbConnect from "@/lib/db";
 import Group from "@/lib/models/Group";
 import Expense from "@/lib/models/Expense";
+import { logActivity } from "@/lib/activity";
 
 export async function POST(req: Request) {
   try {
@@ -156,6 +157,15 @@ export async function POST(req: Request) {
         groupName: debt.groupName,
         amount: settleAmount,
         expenseId: settlementExpense._id
+      });
+
+      // Log activity
+      const userEmailOrId = session.user.email || (session.user as any).id;
+      await logActivity({
+        groupId: debt.groupId,
+        performedByUserId: userEmailOrId,
+        type: "settle",
+        description: `recorded settlement of ₹${settleAmount} (${payerName} to ${receiverName})`,
       });
 
       amountRemaining -= settleAmount;

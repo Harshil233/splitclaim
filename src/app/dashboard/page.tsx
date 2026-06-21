@@ -72,11 +72,10 @@ export default function DashboardPage() {
 
   return (
     <div className={styles.container}>
-      {/* Greetings Header */}
+      {/* Dashboard Title Header */}
       <div className={styles.welcomeHeader} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
-          <span className={styles.greeting}>Welcome Back</span>
-          <h1 className={styles.username}>{session?.user?.name || "User"}</h1>
+          <h1 className={styles.username} style={{ fontSize: "26px" }}>Dashboard</h1>
         </div>
         <button
           onClick={() => fetchGroups()}
